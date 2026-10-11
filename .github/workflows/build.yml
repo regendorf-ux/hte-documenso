@@ -1,0 +1,187 @@
+# Build HTE's copy of Documenso and run the signing test on it.
+#
+# Saturdays: looks at Documenso's latest release; if there is no HTE build of it yet, builds one -
+# Documenso's own source at that tag, plus patches/ and overlay/ - runs the signing test and, if every
+# check passes, publishes the image (ghcr.io/regendorf-ux/hte-documenso:<tag>-hte.<n>) and a GitHub
+# release (a pre-release: "waiting for HTE's yes") with the notes, the test's pictures and the full source.
+# The server at sign.htepr.com sees the release, e-mails Osvaldo, and switches only after his reply.
+# A build or test that fails opens an issue (label build-failed) instead; nothing is published.
+#
+# By hand: Actions > Build > Run workflow (blank tag = the one in UPSTREAM; tick "release" to publish).
+
+name: Build
+
+on:
+  schedule:
+    - cron: "0 9 * * 6"          # Saturday 09:00 UTC (05:00 in Puerto Rico)
+  workflow_dispatch:
+    inputs:
+      upstream:
+        description: "Documenso tag (blank: the one in UPSTREAM)"
+        required: false
+      release:
+        description: "Publish the image and a release if the test passes"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  packages: write
+  issues: write
+
+concurrency:
+  group: build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      GH_TOKEN: ${{ github.token }}
+      IMAGE: ghcr.io/${{ github.repository_owner }}/hte-documenso
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Which Documenso
+        id: which
+        run: |
+          set -euo pipefail
+          ours=$(gh release list --limit 100 --json tagName --jq '.[].tagName' || true)
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            tag=$(gh api repos/documenso/documenso/releases/latest --jq .tag_name)
+            release=true
+            if echo "$ours" | grep -q "^${tag}-hte\."; then
+              echo "Documenso $tag is already built."; echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
+            fi
+          else
+            tag="${{ inputs.upstream }}"; [ -n "$tag" ] || tag=$(cat UPSTREAM)
+            release="${{ inputs.release }}"
+          fi
+          n=$(( $(echo "$ours" | grep -c "^${tag}-hte\." || true) + 1 ))
+          last=$(echo "$ours" | grep -- "-hte\." | head -1 | sed 's/-hte\..*//' || true)
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "name=${tag}-hte.${n}" >> "$GITHUB_OUTPUT"
+          echo "last=$last" >> "$GITHUB_OUTPUT"
+          echo "release=$release" >> "$GITHUB_OUTPUT"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+          echo "Building Documenso $tag as ${tag}-hte.${n} (last built: ${last:-none}; release: $release)"
+
+      - name: Documenso's source, with HTE's changes
+        if: steps.which.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          git clone --quiet --depth 1 --branch "${{ steps.which.outputs.tag }}" https://github.com/documenso/documenso.git src
+          tools/apply.sh src
+
+      - uses: docker/setup-buildx-action@v3
+        if: steps.which.outputs.skip != 'true'
+
+      - name: Build the image
+        if: steps.which.outputs.skip != 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: src
+          file: src/docker/Dockerfile
+          load: true
+          tags: hte-documenso:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.description=HTE, Inc.'s copy of Documenso ${{ steps.which.outputs.tag }}
+            org.opencontainers.image.licenses=AGPL-3.0
+
+      - name: Start it (empty database, sign-ups on for the test account)
+        if: steps.which.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          docker network create t
+          docker run -d --name pg --network t -e POSTGRES_USER=documenso -e POSTGRES_PASSWORD=documenso \
+            -e POSTGRES_DB=documenso postgres:15
+          openssl req -x509 -newkey rsa:2048 -nodes -days 7 -subj "/CN=HTE signing test" -keyout k.pem -out c.pem 2>/dev/null
+          openssl pkcs12 -export -out cert.p12 -inkey k.pem -in c.pem -passout pass:test \
+            -certpbe PBE-SHA1-3DES -keypbe PBE-SHA1-3DES -macalg sha1
+          chmod 644 cert.p12
+          {
+            echo "NEXTAUTH_SECRET=$(openssl rand -hex 24)"
+            echo "NEXT_PRIVATE_ENCRYPTION_KEY=$(openssl rand -hex 24)"
+            echo "NEXT_PRIVATE_ENCRYPTION_SECONDARY_KEY=$(openssl rand -hex 24)"
+            echo "NEXT_PUBLIC_WEBAPP_URL=http://localhost:3000"
+            echo "NEXT_PRIVATE_INTERNAL_WEBAPP_URL=http://localhost:3000"
+            echo "NEXT_PRIVATE_DATABASE_URL=postgres://documenso:documenso@pg:5432/documenso"
+            echo "NEXT_PRIVATE_DIRECT_DATABASE_URL=postgres://documenso:documenso@pg:5432/documenso"
+            echo "PORT=3000"
+            echo "NEXT_PRIVATE_SIGNING_TRANSPORT=local"
+            echo "NEXT_PRIVATE_SIGNING_PASSPHRASE=test"
+            echo "NEXT_PRIVATE_SIGNING_LOCAL_FILE_PATH=/opt/documenso/cert.p12"
+            echo "NEXT_PUBLIC_UPLOAD_TRANSPORT=database"
+            echo "NEXT_PRIVATE_SMTP_TRANSPORT=smtp-auth"
+            echo "NEXT_PRIVATE_SMTP_HOST=127.0.0.1"
+            echo "NEXT_PRIVATE_SMTP_PORT=2500"
+            echo "NEXT_PRIVATE_SMTP_FROM_NAME=Test"
+            echo "NEXT_PRIVATE_SMTP_FROM_ADDRESS=test@example.invalid"
+            echo "NEXT_PRIVATE_JOBS_PROVIDER=local"
+            echo "DOCUMENSO_DISABLE_TELEMETRY=true"
+          } > test.env
+          start() {
+            docker rm -f app >/dev/null 2>&1 || true
+            docker run -d --name app --network t -p 3000:3000 --env-file test.env "$@" \
+              -v "$PWD/cert.p12:/opt/documenso/cert.p12:ro" hte-documenso:test
+            for i in $(seq 1 90); do
+              if curl -fsS http://localhost:3000/api/health 2>/dev/null | grep -q '"status":"ok"'; then echo "up after $((i*5))s"; return 0; fi
+              sleep 5
+            done
+            docker logs --tail 80 app; return 1
+          }
+          declare -f start > start.sh
+          start
+
+      - name: Signing test
+        if: steps.which.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet playwright httpx
+          python -m playwright install --with-deps chromium > /dev/null
+          python test/signing_test.py --base http://localhost:3000 --out results --setup \
+            --sql "docker exec -i pg psql -U documenso -d documenso"
+          # the test proper runs as sign.htepr.com does: no sign-ups with e-mail and password
+          source start.sh
+          start -e NEXT_PUBLIC_DISABLE_EMAIL_PASSWORD_SIGNUP=true
+          python test/signing_test.py --base http://localhost:3000 --out results --account results/account.json
+
+      - name: Keep the results
+        if: always() && steps.which.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: results
+          path: |
+            results/*.png
+            results/*.json
+            !results/account.json
+            !results/state.json
+
+      - name: Publish the image and the release
+        if: success() && steps.which.outputs.skip != 'true' && steps.which.outputs.release == 'true'
+        run: |
+          set -euo pipefail
+          name="${{ steps.which.outputs.name }}"
+          echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker tag hte-documenso:test "$IMAGE:$name"
+          docker push "$IMAGE:$name" | tail -2
+          digest=$(docker inspect --format '{{index .RepoDigests 0}}' "$IMAGE:$name")
+          echo "$digest" > results/image.txt
+          tar --exclude=.git -czf "results/hte-documenso-$name-source.tar.gz" -C src .
+          python tools/notes.py "${{ steps.which.outputs.tag }}" "${{ steps.which.outputs.last }}" results/results.json "$digest" \
+            > notes.md 2> results/notes-meta.json
+          gh release create "$name" --prerelease --title "$name" --notes-file notes.md \
+            results/*.png results/results.json results/image.txt results/notes-meta.json \
+            "results/hte-documenso-$name-source.tar.gz"
+
+      - name: Say it failed
+        if: failure() && steps.which.outputs.release == 'true'
+        run: |
+          title="Documenso ${{ steps.which.outputs.tag }}: build or signing test failed"
+          body="Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} - nothing was published; sign.htepr.com stays as it is."
+          gh label create build-failed --color B60205 --force > /dev/null 2>&1 || true
+          gh issue create --title "$title" --body "$body" --label build-failed

@@ -1,0 +1,858 @@
+diff --git a/apps/remix/app/app.css b/apps/remix/app/app.css
+index 359a109..e032e6b 100644
+--- a/apps/remix/app/app.css
++++ b/apps/remix/app/app.css
+@@ -1,4 +1,5 @@
+ @import "@documenso/ui/styles/theme.css";
++@import "./hte.css";
+ 
+ /* Inter Variable Fonts */
+ @font-face {
+diff --git a/apps/remix/app/components/general/app-header.tsx b/apps/remix/app/components/general/app-header.tsx
+index 2717b80..eb23879 100644
+--- a/apps/remix/app/components/general/app-header.tsx
++++ b/apps/remix/app/components/general/app-header.tsx
+@@ -7,7 +7,7 @@ import { InboxIcon, MenuIcon, SearchIcon } from 'lucide-react';
+ import { type HTMLAttributes, useEffect, useState } from 'react';
+ import { Link, useParams } from 'react-router';
+ 
+-import { BrandingLogo } from '~/components/general/branding-logo';
++import { HteLogo, HteThemeSwitch } from '~/components/general/hte';
+ 
+ import { AppCommandMenu } from './app-command-menu';
+ import { AppNavDesktop } from './app-nav-desktop';
+@@ -48,7 +48,7 @@ export const Header = ({ className, fullWidth = false, ...props }: HeaderProps)
+   return (
+     <header
+       className={cn(
+-        'sticky top-0 z-[60] flex h-16 w-full items-center border-b border-b-transparent bg-background/95 backdrop-blur duration-200 supports-backdrop-blur:bg-background/60',
++        'hte-bar sticky top-0 z-[60] flex h-16 w-full items-center border-b border-b-transparent bg-background/95 backdrop-blur duration-200 supports-backdrop-blur:bg-background/60',
+         (scrollY > 5 || fullWidth) && 'border-b-border',
+         className,
+       )}
+@@ -65,11 +65,13 @@ export const Header = ({ className, fullWidth = false, ...props }: HeaderProps)
+           to={getRootHref(params)}
+           className="hidden rounded-md ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:inline"
+         >
+-          <BrandingLogo className="h-6 w-auto" />
++          <HteLogo />
+         </Link>
+ 
+         <AppNavDesktop setIsCommandMenuOpen={setIsCommandMenuOpen} />
+ 
++        <HteThemeSwitch className="hidden md:block" />
++
+         <Button asChild variant="outline" className="relative hidden h-10 w-10 rounded-lg md:flex">
+           <Link to="/inbox" className="relative block h-10 w-10">
+             <InboxIcon className="h-5 w-5 flex-shrink-0 text-muted-foreground transition-colors hover:text-foreground" />
+diff --git a/apps/remix/app/components/general/app-nav-mobile.tsx b/apps/remix/app/components/general/app-nav-mobile.tsx
+index 76eea8c..6ab43be 100644
+--- a/apps/remix/app/components/general/app-nav-mobile.tsx
++++ b/apps/remix/app/components/general/app-nav-mobile.tsx
+@@ -6,12 +6,11 @@ import { canAccessOrganisationAnalytics, formatOrganisationAnalyticsPath } from
+ import { canExecuteTeamAction, formatAnalyticsPath } from '@documenso/lib/utils/teams';
+ import { trpc } from '@documenso/trpc/react';
+ import { Sheet, SheetContent } from '@documenso/ui/primitives/sheet';
+-import { ThemeSwitcher } from '@documenso/ui/primitives/theme-switcher';
+ import { Trans, useLingui } from '@lingui/react/macro';
+ import { ReadStatus } from '@prisma/client';
+ import { useMemo } from 'react';
+ import { Link } from 'react-router';
+-
++import { HteThemeSwitch } from '~/components/general/hte';
+ import { useOptionalCurrentTeam } from '~/providers/team';
+ 
+ export type AppNavMobileProps = {
+@@ -120,7 +119,7 @@ export const AppNavMobile = ({ isMenuOpen, onMenuOpenChange }: AppNavMobileProps
+ 
+         <div className="mt-auto flex w-full flex-col space-y-4 self-end">
+           <div className="w-fit">
+-            <ThemeSwitcher />
++            <HteThemeSwitch />
+           </div>
+ 
+           <p className="text-muted-foreground text-sm">
+diff --git a/apps/remix/app/components/general/envelope-editor/envelope-editor-header.tsx b/apps/remix/app/components/general/envelope-editor/envelope-editor-header.tsx
+index 5e35ca8..df98815 100644
+--- a/apps/remix/app/components/general/envelope-editor/envelope-editor-header.tsx
++++ b/apps/remix/app/components/general/envelope-editor/envelope-editor-header.tsx
+@@ -21,10 +21,10 @@ import { match } from 'ts-pattern';
+ import { EnvelopeDistributeDialog } from '~/components/dialogs/envelope-distribute-dialog';
+ import { EnvelopeRedistributeDialog } from '~/components/dialogs/envelope-redistribute-dialog';
+ import { TemplateUseDialog } from '~/components/dialogs/template-use-dialog';
+-import { BrandingLogo } from '~/components/general/branding-logo';
+ import { DocumentAttachmentsPopover } from '~/components/general/document/document-attachments-popover';
+ import { EmbeddedEditorAttachmentPopover } from '~/components/general/document/embedded-editor-attachment-popover';
+ import { EnvelopeEditorSettingsDialog } from '~/components/general/envelope-editor/envelope-editor-settings-dialog';
++import { HteLogo } from '~/components/general/hte';
+ 
+ import { TemplateDirectLinkBadge } from '../template/template-direct-link-badge';
+ import { EnvelopeItemTitleInput } from './envelope-editor-title-input';
+@@ -68,14 +68,14 @@ export default function EnvelopeEditorHeader() {
+   };
+ 
+   return (
+-    <nav className="w-full border-border border-b bg-background px-4 py-3 md:px-6">
++    <nav className="hte-bar w-full border-border border-b bg-background px-4 py-3 md:px-6">
+       <div className="flex items-center justify-between gap-4">
+         <div className="flex min-w-0 flex-1 items-center space-x-4">
+           {editorConfig.embedded?.customBrandingLogo ? (
+             <img src={`/api/branding/logo/team/${envelope.teamId}`} alt="Logo" className="h-6 w-auto" />
+           ) : (
+             <Link to="/">
+-              <BrandingLogo className="h-6 w-auto" />
++              <HteLogo />
+             </Link>
+           )}
+           <Separator orientation="vertical" className="h-6 shrink-0" />
+diff --git a/apps/remix/app/components/general/envelope-signing/envelope-signer-header.tsx b/apps/remix/app/components/general/envelope-signing/envelope-signer-header.tsx
+index d4cddf1..51ec9db 100644
+--- a/apps/remix/app/components/general/envelope-signing/envelope-signer-header.tsx
++++ b/apps/remix/app/components/general/envelope-signing/envelope-signer-header.tsx
+@@ -16,10 +16,9 @@ import { match } from 'ts-pattern';
+ 
+ import { EnvelopeDownloadDialog } from '~/components/dialogs/envelope-download-dialog';
+ import { useEmbedSigningContext } from '~/components/embed/embed-signing-context';
+-import { BrandingLogo } from '~/components/general/branding-logo';
++import { HteLogo, HteMark, HteThemeSwitch } from '~/components/general/hte';
+ import { PublicLegalLinksDropdownMenuItems } from '~/components/general/public-legal-links';
+ 
+-import { BrandingLogoIcon } from '../branding-logo-icon';
+ import { DocumentSigningRejectDialog } from '../document-signing/document-signing-reject-dialog';
+ import { useRequiredEnvelopeSigningContext } from '../document-signing/envelope-signing-provider';
+ import { EnvelopeSignerCompleteDialog } from './envelope-signing-complete-dialog';
+@@ -31,7 +30,7 @@ export const EnvelopeSignerHeader = () => {
+   const hasCustomBrandingLogo = envelopeData.settings.brandingEnabled && Boolean(envelopeData.settings.brandingLogo);
+ 
+   return (
+-    <nav className="embed--DocumentWidgetHeader flex max-w-screen flex-row justify-between border-border border-b bg-background px-4 py-3 md:px-6">
++    <nav className="embed--DocumentWidgetHeader hte-bar flex max-w-screen flex-row justify-between border-border border-b bg-background px-4 py-3 md:px-6">
+       {/* Left side - Logo and title */}
+       <div className="flex min-w-0 flex-1 items-center space-x-2 md:w-auto md:flex-none">
+         {!isEmbedSigning &&
+@@ -43,8 +42,8 @@ export const EnvelopeSignerHeader = () => {
+             />
+           ) : (
+             <Link to="/" className="flex-shrink-0">
+-              <BrandingLogo className="hidden h-6 w-auto md:block" />
+-              <BrandingLogoIcon className="h-6 w-auto md:hidden" />
++              <HteLogo className="hidden md:block" />
++              <HteMark className="md:hidden" />
+             </Link>
+           ))}
+ 
+@@ -70,6 +69,8 @@ export const EnvelopeSignerHeader = () => {
+ 
+       {/* Right side - Desktop content */}
+       <div className="hidden items-center space-x-2 lg:flex">
++        <HteThemeSwitch />
++
+         <p className="mr-2 flex-shrink-0 text-muted-foreground text-sm">
+           <Plural one="1 Field Remaining" other="# Fields Remaining" value={recipientFieldsRemaining.length} />
+         </p>
+@@ -78,7 +79,8 @@ export const EnvelopeSignerHeader = () => {
+       </div>
+ 
+       {/* Mobile Actions button */}
+-      <div className="flex-shrink-0 lg:hidden">
++      <div className="flex flex-shrink-0 items-center gap-x-2 lg:hidden">
++        <HteThemeSwitch small />
+         <MobileDropdownMenu />
+       </div>
+     </nav>
+diff --git a/apps/remix/app/components/general/hte.tsx b/apps/remix/app/components/general/hte.tsx
+new file mode 100644
+index 0000000..b29c798
+--- /dev/null
++++ b/apps/remix/app/components/general/hte.tsx
+@@ -0,0 +1,71 @@
++/**
++ * HTE, Inc.'s pieces for its copy of Documenso: the logo, the logo's sphere (phones), the
++ * light / dark switch, and the "Powered by Documenso" line.
++ * Styles are in app/hte.css.
++ */
++import { useIsMounted } from '@documenso/lib/client-only/hooks/use-is-mounted';
++import { cn } from '@documenso/ui/lib/utils';
++import { MoonStar, Sun } from 'lucide-react';
++import type { ImgHTMLAttributes } from 'react';
++import { Theme, useTheme } from 'remix-themes';
++
++/** Where this copy's source is published (the AGPL's offer of the source). */
++export const HTE_SOURCE_URL = 'https://github.com/regendorf-ux/hte-documenso';
++
++type ImgProps = ImgHTMLAttributes<HTMLImageElement>;
++
++export const HteLogo = ({ className, ...props }: ImgProps) => (
++  <img src="/hte/logo.png" alt="HTE, Inc." className={cn('hte-logo', className)} {...props} />
++);
++
++export const HteMark = ({ className, ...props }: ImgProps) => (
++  <img src="/hte/mark.png" alt="HTE, Inc." className={cn('hte-mark', className)} {...props} />
++);
++
++/**
++ * Light or dark. Until someone picks, the page follows the device (light or dark); a pick is
++ * remembered (Documenso's own theme cookie). Two buttons, no third "as the device" one.
++ */
++export const HteThemeSwitch = ({ className, small = false }: { className?: string; small?: boolean }) => {
++  const [theme, setTheme] = useTheme();
++  const isMounted = useIsMounted();
++
++  const deviceDark = isMounted && window.matchMedia('(prefers-color-scheme: dark)').matches;
++  const shown = theme ?? (deviceDark ? Theme.DARK : Theme.LIGHT);
++
++  return (
++    <div className={cn('hte-theme', small && 'hte-small', className)}>
++      <div className="hte-theme-pill">
++        <button
++          type="button"
++          title="Light"
++          aria-label="Light"
++          aria-pressed={isMounted && shown === Theme.LIGHT}
++          className={cn(isMounted && shown === Theme.LIGHT && 'on')}
++          onClick={() => setTheme(Theme.LIGHT)}
++        >
++          <Sun />
++        </button>
++        <button
++          type="button"
++          title="Dark"
++          aria-label="Dark"
++          aria-pressed={isMounted && shown === Theme.DARK}
++          className={cn(isMounted && shown === Theme.DARK && 'on')}
++          onClick={() => setTheme(Theme.DARK)}
++        >
++          <MoonStar />
++        </button>
++      </div>
++    </div>
++  );
++};
++
++export const HtePoweredBy = () => (
++  <div className="hte-powered">
++    HTE Document Signing · Powered by <b>Documenso</b> ·{' '}
++    <a href={HTE_SOURCE_URL} target="_blank" rel="noopener">
++      source
++    </a>
++  </div>
++);
+diff --git a/apps/remix/app/hte.css b/apps/remix/app/hte.css
+new file mode 100644
+index 0000000..4ade6f3
+--- /dev/null
++++ b/apps/remix/app/hte.css
+@@ -0,0 +1,391 @@
++/*
++ * HTE, Inc.'s look for Documenso (sign.htepr.com). Loaded after Documenso's own theme.css,
++ * so it only re-sets values: buttons and accents in the logo's blue (the CSR app's #0a66e8,
++ * #3b8dff in dark), a navy top bar, htepr.com's type (Archivo headings, Source Sans 3 text),
++ * the HTE sign-in card and the "Powered by Documenso" line. Light and dark follow the
++ * device until someone picks one with the switch in the top bar.
++ */
++
++@font-face {
++  font-family: "Archivo";
++  font-weight: 600;
++  font-display: swap;
++  src: url("/hte/fonts/archivo-600.woff2") format("woff2");
++}
++@font-face {
++  font-family: "Archivo";
++  font-weight: 700;
++  font-display: swap;
++  src: url("/hte/fonts/archivo-700.woff2") format("woff2");
++}
++@font-face {
++  font-family: "Source Sans 3";
++  font-weight: 400;
++  font-display: swap;
++  src: url("/hte/fonts/source-sans-3-400.woff2") format("woff2");
++}
++@font-face {
++  font-family: "Source Sans 3";
++  font-weight: 600;
++  font-display: swap;
++  src: url("/hte/fonts/source-sans-3-600.woff2") format("woff2");
++}
++
++:root,
++.dark-mode-disabled {
++  --font-sans: "Source Sans 3";
++  --foreground: 240 3% 12%;
++  --primary: 215 92% 47%;
++  --primary-foreground: 0 0% 100%;
++  --ring: 215 92% 47%;
++  --field-card: 215 92% 95%;
++  --field-card-border: 215 85% 62%;
++  --card-border-tint: 10 102 232;
++  --documenso: #0a66e8;
++  --new-primary-50: 215, 92%, 97%;
++  --new-primary-100: 215, 92%, 93%;
++  --new-primary-200: 215, 92%, 85%;
++  --new-primary-300: 215, 90%, 72%;
++  --new-primary-400: 215, 90%, 60%;
++  --new-primary-500: 215, 92%, 47%;
++  --new-primary-600: 215, 92%, 40%;
++  --new-primary-700: 215, 92%, 33%;
++  --new-primary-800: 215, 92%, 24%;
++  --new-primary-900: 215, 92%, 14%;
++  --new-primary-950: 215, 92%, 8%;
++  --envelope-editor-background: 240 5% 96%;
++
++  --hte-navy: #0a2540;
++  --hte-blue: #0a66e8;
++  --hte-link: #0854c0;
++  --hte-quiet: #6e6e73;
++  --hte-line: #d8dee3;
++  --hte-footer: rgba(255, 255, 255, 0.94);
++  --hte-card: #ffffff;
++  --hte-card-ink: #101519;
++  --hte-on-blue: #ffffff;
++}
++
++/* Dark: the CSR app's dark palette. Same selector shape as Documenso's dark rule, one step stronger. */
++html.dark:not(.dark-mode-disabled),
++html.dark .dark-mode-disabled {
++  --background: 240 3% 11%;
++  --foreground: 240 20% 96%;
++  --card: 240 4% 15%;
++  --card-foreground: 240 20% 96%;
++  --card-border: 240 3% 24%;
++  --popover: 240 4% 15%;
++  --popover-foreground: 240 20% 96%;
++  --widget: 240 4% 15%;
++  --widget-foreground: 240 3% 20%;
++  --muted: 240 3% 19%;
++  --muted-foreground: 240 3% 66%;
++  --border: 240 3% 24%;
++  --input: 240 3% 28%;
++  --field-border: 240 3% 40%;
++  --secondary: 240 3% 19%;
++  --secondary-foreground: 240 20% 96%;
++  --accent: 240 3% 21%;
++  --accent-foreground: 240 20% 96%;
++  --primary: 215 100% 62%;
++  --primary-foreground: 216 65% 12%;
++  --ring: 215 100% 62%;
++  --field-card: 215 60% 18%;
++  --field-card-border: 215 100% 62%;
++  --field-card-foreground: 240 20% 96%;
++  --envelope-editor-background: 240 3% 11%;
++  --documenso: #3b8dff;
++
++  --hte-blue: #3b8dff;
++  --hte-link: #5ea1ff;
++  --hte-quiet: #a1a1a8;
++  --hte-line: #3a3a3e;
++  --hte-footer: rgba(28, 28, 30, 0.94);
++  --hte-card: #242427;
++  --hte-card-ink: #f2f2f7;
++  --hte-on-blue: #0b1b33;
++  color-scheme: dark;
++}
++
++body {
++  font-family: "Source Sans 3", "Inter", system-ui, sans-serif;
++}
++h1,
++h2,
++h3,
++[role="dialog"] h2 {
++  font-family: "Archivo", system-ui, sans-serif;
++  letter-spacing: -0.01em;
++}
++button {
++  font-family: "Archivo", system-ui, sans-serif;
++  font-weight: 600;
++}
++
++/* Documenso's green links and the green glow behind "Document Signed". */
++[class*="text-documenso-"],
++.text-documenso {
++  color: var(--hte-link) !important;
++}
++[class*="border-documenso"] {
++  border-color: var(--hte-blue) !important;
++}
++/* Buttons that switch to Documenso's fixed green in dark mode (the sign-in button, for one). */
++html.dark .dark\:bg-documenso {
++  background-color: hsl(var(--primary)) !important;
++  color: hsl(var(--primary-foreground)) !important;
++}
++img[src*="signing-celebration"] {
++  filter: hue-rotate(115deg) saturate(0.8);
++}
++html.dark img[src*="signing-celebration"] {
++  filter: invert(1) hue-rotate(295deg) saturate(0.6) brightness(0.7);
++}
++
++/* The logo: its grey lettering needs its white, so on the navy bar it sits on a white tile. */
++img.hte-logo {
++  width: auto;
++}
++img.hte-mark {
++  width: auto;
++}
++.hte-bar img.hte-logo {
++  height: 44px;
++  background: #fff;
++  padding: 3px 10px;
++  border-radius: 4px;
++}
++.hte-bar img.hte-mark {
++  height: 32px;
++  background: #fff;
++  padding: 2px;
++  border-radius: 6px;
++}
++
++/* The navy top bar (header option B): the app's header, the signing pages', the editor's. */
++.hte-bar {
++  background: var(--hte-navy) !important;
++  border-bottom-color: transparent !important;
++  color: #f6f7f8;
++}
++.hte-bar a,
++.hte-bar button,
++.hte-bar p,
++.hte-bar h1,
++.hte-bar span:not(.hte-keep) {
++  color: #f6f7f8;
++}
++.hte-bar .text-muted-foreground,
++.hte-bar .text-muted-foreground * {
++  color: #b7c4d3 !important;
++}
++.hte-bar .text-foreground {
++  color: #f6f7f8 !important;
++}
++/* Light chips in the bar (an avatar's letter, the search box's shortcut) keep dark text. */
++.hte-bar .bg-muted,
++.hte-bar .bg-muted * {
++  color: #4b5563 !important;
++}
++html.dark .hte-bar .bg-muted,
++html.dark .hte-bar .bg-muted * {
++  color: #c7c7cc !important;
++}
++.hte-bar input,
++.hte-bar button.border,
++.hte-bar a.border,
++.hte-bar [class*="border-input"] {
++  background: rgba(255, 255, 255, 0.08) !important;
++  border-color: rgba(255, 255, 255, 0.25) !important;
++}
++.hte-bar .bg-primary,
++.hte-bar .bg-primary * {
++  color: hsl(var(--primary-foreground)) !important;
++}
++.hte-bar [data-orientation="vertical"][role="none"],
++.hte-bar .bg-border {
++  background: rgba(255, 255, 255, 0.25) !important;
++}
++
++/* The light / dark switch: two round buttons in a pill, the chosen one filled. */
++.hte-theme-pill {
++  display: flex;
++  align-items: center;
++  gap: 2px;
++  padding: 3px;
++  border-radius: 999px;
++  background: hsl(var(--muted));
++}
++.hte-theme-pill button {
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  width: 2rem;
++  height: 2rem;
++  border: 0;
++  border-radius: 999px;
++  background: transparent;
++  color: hsl(var(--muted-foreground));
++  cursor: pointer;
++}
++.hte-theme-pill button svg {
++  width: 1.15rem;
++  height: 1.15rem;
++}
++.hte-theme-pill button.on {
++  background: hsl(var(--background));
++  color: hsl(var(--foreground));
++  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
++}
++.hte-small .hte-theme-pill button {
++  width: 1.75rem;
++  height: 1.75rem;
++}
++.hte-small .hte-theme-pill button svg {
++  width: 1rem;
++  height: 1rem;
++}
++.hte-bar .hte-theme-pill {
++  background: rgba(255, 255, 255, 0.1);
++}
++.hte-bar .hte-theme-pill button {
++  color: #b7c4d3 !important;
++}
++.hte-bar .hte-theme-pill button.on {
++  background: rgba(255, 255, 255, 0.22);
++  color: #ffffff !important;
++  box-shadow: none;
++}
++
++/* "Powered by Documenso · source": at the foot of every page; fixed to the window's bottom on a computer. */
++.hte-powered {
++  text-align: center;
++  padding: 6px 12px;
++  font:
++    400 12.5px / 1.4 "Source Sans 3",
++    system-ui,
++    sans-serif;
++  color: var(--hte-quiet);
++}
++.hte-powered b {
++  font-weight: 600;
++}
++.hte-powered a {
++  text-decoration: underline;
++  color: inherit;
++}
++@media (min-width: 768px) {
++  .hte-powered {
++    position: fixed;
++    left: 0;
++    right: 0;
++    bottom: 0;
++    z-index: 40;
++    background: var(--hte-footer);
++    border-top: 1px solid var(--hte-line);
++  }
++  body:has(.hte-powered) {
++    padding-bottom: 30px;
++  }
++}
++
++/* Sign-in (option B2): the HTE photo under navy, one card. */
++.hte-photo {
++  background:
++    linear-gradient(rgba(10, 37, 64, 0.82), rgba(10, 37, 64, 0.82)),
++    url("/hte/backdrop.webp") center / cover;
++}
++html.dark .hte-photo {
++  background:
++    linear-gradient(rgba(12, 14, 18, 0.86), rgba(12, 14, 18, 0.86)),
++    url("/hte/backdrop.webp") center / cover;
++}
++.hte-photo footer,
++.hte-photo footer a {
++  color: #b9c6d4;
++}
++.hte-signin {
++  position: relative;
++  width: min(440px, 100%);
++  padding: 40px 36px;
++  border-radius: 10px;
++  background: var(--hte-card);
++  color: var(--hte-card-ink);
++  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
++  display: flex;
++  flex-direction: column;
++  gap: 20px;
++  align-items: stretch;
++  text-align: center;
++}
++.hte-signin h1 {
++  font-size: 26px;
++  font-weight: 700;
++}
++.hte-signin .hte-signin-logo {
++  width: 220px;
++  margin: 0 auto;
++  border-radius: 8px;
++  padding: 4px 10px;
++  background: #fff;
++}
++.hte-signin .hte-hint {
++  color: var(--hte-quiet);
++  font-size: 15px;
++  line-height: 1.45;
++}
++.hte-signin .hte-other {
++  font-size: 14px;
++  font-weight: 600;
++  color: var(--hte-link);
++  background: none;
++  border: 0;
++  cursor: pointer;
++}
++.hte-signin .hte-switch {
++  position: absolute;
++  top: 12px;
++  right: 12px;
++}
++.hte-signin .hte-switch > div {
++  background: hsl(var(--muted));
++}
++.hte-ms {
++  display: inline-flex;
++  align-items: center;
++  justify-content: center;
++  gap: 12px;
++  height: 48px;
++  padding: 0 22px;
++  border: 0;
++  border-radius: 6px;
++  cursor: pointer;
++  background: var(--hte-blue);
++  color: var(--hte-on-blue);
++  font-size: 16px;
++}
++.hte-ms:hover {
++  filter: brightness(1.08);
++}
++.hte-ms-logo {
++  width: 18px;
++  height: 18px;
++  display: grid;
++  grid-template-columns: 1fr 1fr;
++  gap: 2px;
++}
++.hte-ms-logo i:nth-child(1) {
++  background: #f25022;
++}
++.hte-ms-logo i:nth-child(2) {
++  background: #7fba00;
++}
++.hte-ms-logo i:nth-child(3) {
++  background: #00a4ef;
++}
++.hte-ms-logo i:nth-child(4) {
++  background: #ffb900;
++}
++.hte-signin form {
++  text-align: left;
++}
+diff --git a/apps/remix/app/root.tsx b/apps/remix/app/root.tsx
+index b7f1caf..c6e5ea6 100644
+--- a/apps/remix/app/root.tsx
++++ b/apps/remix/app/root.tsx
+@@ -27,6 +27,7 @@ import { nonceMiddleware } from '~/middleware/nonce';
+ import type { Route } from './+types/root';
+ import stylesheet from './app.css?url';
+ import { GenericErrorLayout } from './components/general/generic-error-layout';
++import { HtePoweredBy } from './components/general/hte';
+ import { langCookie } from './storage/lang-cookie.server';
+ import { themeSessionResolver } from './storage/theme-session.server';
+ import { appMetaTags } from './utils/meta';
+@@ -125,6 +126,11 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
+   // route tree, attached directly to document.body).
+   const matches = useMatches();
+   const isRecipientRoute = matches.some((m) => m.id?.startsWith('routes/_recipient+'));
++  // HTE: the "Powered by Documenso" line goes on every page a person sees, never into the
++  // PDFs Documenso renders from its internal pages, nor into embedded signing.
++  const showPoweredBy = !matches.some(
++    (m) => m.id?.startsWith('routes/_internal+') || m.id?.startsWith('routes/embed+'),
++  );
+ 
+   return (
+     // `suppressHydrationWarning` because `remix-themes` intentionally mutates
+@@ -176,6 +182,8 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
+               <TrpcProvider>
+                 {children}
+ 
++                {showPoweredBy && <HtePoweredBy />}
++
+                 <Toaster />
+               </TrpcProvider>
+             </TooltipProvider>
+diff --git a/apps/remix/app/routes/_unauthenticated+/_layout.tsx b/apps/remix/app/routes/_unauthenticated+/_layout.tsx
+index dd080fb..756047f 100644
+--- a/apps/remix/app/routes/_unauthenticated+/_layout.tsx
++++ b/apps/remix/app/routes/_unauthenticated+/_layout.tsx
+@@ -1,25 +1,12 @@
+-import backgroundPattern from '@documenso/assets/images/background-pattern.png';
+ import { Outlet } from 'react-router';
+ 
+ import { PublicLegalLinks } from '~/components/general/public-legal-links';
+ 
+ export default function Layout() {
+   return (
+-    <main className="relative flex min-h-screen flex-col items-center justify-between overflow-hidden px-4 py-12 md:p-12 lg:p-24">
++    <main className="hte-photo relative flex min-h-screen flex-col items-center justify-between overflow-hidden px-4 py-12 md:p-12 lg:p-24">
+       <div className="flex w-full flex-1 flex-col items-center justify-center">
+-        <div className="absolute -inset-[min(600px,max(400px,60vw))] -z-[1] flex items-center justify-center opacity-70">
+-          <img
+-            src={backgroundPattern}
+-            alt="background pattern"
+-            className="dark:brightness-95 dark:contrast-[70%] dark:invert dark:sepia"
+-            style={{
+-              mask: 'radial-gradient(rgba(255, 255, 255, 1) 0%, transparent 80%)',
+-              WebkitMask: 'radial-gradient(rgba(255, 255, 255, 1) 0%, transparent 80%)',
+-            }}
+-          />
+-        </div>
+-
+-        <div className="relative w-full flex items-center justify-center">
++        <div className="relative flex w-full items-center justify-center">
+           <Outlet />
+         </div>
+       </div>
+diff --git a/apps/remix/app/routes/_unauthenticated+/signin.tsx b/apps/remix/app/routes/_unauthenticated+/signin.tsx
+index 5ffd895..32181ef 100644
+--- a/apps/remix/app/routes/_unauthenticated+/signin.tsx
++++ b/apps/remix/app/routes/_unauthenticated+/signin.tsx
+@@ -15,11 +15,12 @@ import { msg } from '@lingui/core/macro';
+ import { useLingui } from '@lingui/react';
+ import { Trans } from '@lingui/react/macro';
+ import { Loader2Icon } from 'lucide-react';
+-import { useEffect } from 'react';
++import { useEffect, useState } from 'react';
+ import { Link, redirect, useSearchParams } from 'react-router';
+ 
+ import { SignInForm } from '~/components/forms/signin';
+ import { SIGNUP_ERROR_MESSAGES } from '~/components/forms/signup';
++import { HteLogo, HteThemeSwitch } from '~/components/general/hte';
+ import { appMetaTags } from '~/utils/meta';
+ 
+ import type { Route } from './+types/signin';
+@@ -94,6 +95,9 @@ export default function SignIn({ loaderData }: Route.ComponentProps) {
+   const errorParam = searchParams.get('error');
+   const signupError = errorParam ? SIGNUP_ERROR_MESSAGES[errorParam] : undefined;
+ 
++  const hasMicrosoft = isOIDCSSOEnabled || isMicrosoftSSOEnabled;
++  const [showEmail, setShowEmail] = useState(!hasMicrosoft);
++
+   useEffect(() => {
+     if (!shouldAutoRedirectToOIDC) {
+       return;
+@@ -115,47 +119,76 @@ export default function SignIn({ loaderData }: Route.ComponentProps) {
+     );
+   }
+ 
++  // HTE (sign-in option B2): one card - Microsoft first; e-mail and password one click away.
++  const ssoLabel = isOIDCSSOEnabled ? oidcProviderLabel || 'Microsoft' : 'Microsoft';
++
++  const onMicrosoft = () => {
++    const redirectPath = returnTo ?? '/';
++
++    void (isOIDCSSOEnabled ? authClient.oidc.signIn({ redirectPath }) : authClient.microsoft.signIn({ redirectPath }));
++  };
++
+   return (
+-    <div className="w-screen max-w-lg px-4">
+-      <div className="z-10 rounded-xl border border-border bg-neutral-100 p-6 dark:bg-background">
+-        {signupError && (
+-          <Alert variant="destructive" className="mb-4">
+-            <AlertDescription>{_(signupError)}</AlertDescription>
+-          </Alert>
+-        )}
+-
+-        <h1 className="font-semibold text-2xl">
+-          <Trans>Sign in to your account</Trans>
+-        </h1>
+-
+-        <p className="mt-2 text-muted-foreground text-sm">
+-          <Trans>Welcome back, we are lucky to have you.</Trans>
++    <div className="hte-signin">
++      <HteThemeSwitch className="hte-switch" small />
++
++      <HteLogo className="hte-signin-logo" />
++
++      <h1>HTE Document Signing</h1>
++
++      {signupError && (
++        <Alert variant="destructive" className="text-left">
++          <AlertDescription>{_(signupError)}</AlertDescription>
++        </Alert>
++      )}
++
++      {hasMicrosoft && (
++        <button type="button" className="hte-ms" onClick={onMicrosoft}>
++          <span className="hte-ms-logo">
++            <i />
++            <i />
++            <i />
++            <i />
++          </span>
++          Sign in with {ssoLabel}
++        </button>
++      )}
++
++      <p className="hte-hint">
++        For HTE staff, with your <b>@htepr.com</b> account.
++        <br />
++        Signing a document sent to you? Use the link in your e-mail.
++      </p>
++
++      {isEmailPasswordSigninEnabled &&
++        (showEmail ? (
++          <SignInForm
++            isEmailPasswordSigninEnabled={isEmailPasswordSigninEnabled}
++            isGoogleSSOEnabled={isGoogleSSOEnabled}
++            isMicrosoftSSOEnabled={false}
++            isOIDCSSOEnabled={false}
++            oidcProviderLabel={oidcProviderLabel}
++            returnTo={returnTo}
++          />
++        ) : (
++          <button type="button" className="hte-other" onClick={() => setShowEmail(true)}>
++            Sign in with e-mail and password
++          </button>
++        ))}
++
++      {isSignupEnabled && (
++        <p className="text-center text-muted-foreground text-sm">
++          <Trans>
++            Don't have an account?{' '}
++            <Link
++              to={returnTo ? `/signup?returnTo=${encodeURIComponent(returnTo)}` : '/signup'}
++              className="text-documenso-700 duration-200 hover:opacity-70"
++            >
++              Sign up
++            </Link>
++          </Trans>
+         </p>
+-        <hr className="-mx-6 my-4" />
+-
+-        <SignInForm
+-          isEmailPasswordSigninEnabled={isEmailPasswordSigninEnabled}
+-          isGoogleSSOEnabled={isGoogleSSOEnabled}
+-          isMicrosoftSSOEnabled={isMicrosoftSSOEnabled}
+-          isOIDCSSOEnabled={isOIDCSSOEnabled}
+-          oidcProviderLabel={oidcProviderLabel}
+-          returnTo={returnTo}
+-        />
+-
+-        {isSignupEnabled && (
+-          <p className="mt-6 text-center text-muted-foreground text-sm">
+-            <Trans>
+-              Don't have an account?{' '}
+-              <Link
+-                to={returnTo ? `/signup?returnTo=${encodeURIComponent(returnTo)}` : '/signup'}
+-                className="text-documenso-700 duration-200 hover:opacity-70"
+-              >
+-                Sign up
+-              </Link>
+-            </Trans>
+-          </p>
+-        )}
+-      </div>
++      )}
+     </div>
+   );
+ }
+diff --git a/apps/remix/app/utils/meta.ts b/apps/remix/app/utils/meta.ts
+index 6c059b9..4bbc60a 100644
+--- a/apps/remix/app/utils/meta.ts
++++ b/apps/remix/app/utils/meta.ts
+@@ -7,7 +7,7 @@ export const appMetaTags = (title?: MessageDescriptor) => {
+ 
+   return [
+     {
+-      title: title ? `${i18n._(title)} - Documenso` : 'Documenso',
++      title: title ? `${i18n._(title)} - HTE Document Signing` : 'HTE Document Signing',
+     },
+     {
+       name: 'description',
