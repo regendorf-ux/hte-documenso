@@ -856,3 +856,145 @@ index 6c059b9..4bbc60a 100644
      },
      {
        name: 'description',
+diff --git a/packages/lib/server-only/pdf/render-certificate.ts b/packages/lib/server-only/pdf/render-certificate.ts
+index 9fa2a73..4717a82 100644
+--- a/packages/lib/server-only/pdf/render-certificate.ts
++++ b/packages/lib/server-only/pdf/render-certificate.ts
+@@ -93,6 +93,45 @@ const contentMaxWidth = 768;
+ 
+ const titleFontSize = 18;
+ 
++// HTE: the company's logo in the title row of every certificate page, and "HTE, Inc." as the issuer at the
++// bottom (Osvaldo, 2026-10-12, option B of the mock-up; the logo once, the name in words below). The logo is
++// the overlay's public/hte/logo.png; a certificate is never refused for want of it.
++const hteLogoHeight = 50;
++
++const loadHteLogo = (): HTMLImageElement | null => {
++  const candidates = [
++    path.join(process.cwd(), 'public/hte/logo.png'),
++    path.join(process.cwd(), 'apps/remix/public/hte/logo.png'),
++    path.join(process.cwd(), '../../apps/remix/public/hte/logo.png'),
++  ];
++
++  for (const candidate of candidates) {
++    if (fs.existsSync(candidate)) {
++      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
++      return new SkiaImage(fs.readFileSync(candidate)) as unknown as HTMLImageElement;
++    }
++  }
++
++  return null;
++};
++
++const renderHteLogo = (logo: HTMLImageElement | null, right: number) => {
++  if (!logo) {
++    return null;
++  }
++
++  const height = hteLogoHeight;
++  const width = height * (logo.width / logo.height);
++
++  return new Konva.Image({
++    image: logo,
++    height,
++    width,
++    x: right - width,
++    y: (pageTopMargin - height) / 2,
++  });
++};
++
+ type RenderLabelAndTextOptions = {
+   label: string;
+   text: string;
+@@ -580,18 +619,37 @@ const renderBranding = async ({ qrToken, i18n }: { qrToken: string | null; i18n:
+     height: brandingHeight,
+   });
+ 
+-  const logoPath = path.join(process.cwd(), 'public/static/logo.png');
+-  const logo = fs.readFileSync(logoPath);
+-
+-  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+-  const img = new SkiaImage(logo) as unknown as HTMLImageElement;
++  // HTE: the issuer in words, "HTE, Inc." (its logo heads the page), and Documenso credited under it as
++  // sign.htepr.com's own footer does.
++  const issuer = new Konva.Text({
++    x: text.width() + 8,
++    verticalAlign: 'middle',
++    text: 'HTE, Inc.',
++    fontStyle: '700',
++    fontFamily: 'Inter',
++    fontSize: textBase,
++    height: brandingHeight,
++  });
+ 
+-  const documensoImage = new Konva.Image({
+-    image: img,
++  const credit = new Konva.Text({
++    verticalAlign: 'middle',
++    text: 'HTE Document Signing · Powered by Documenso',
++    fontFamily: 'Inter',
++    fontSize: textXs,
++    fill: textMutedForeground,
+     height: brandingHeight,
+-    width: brandingHeight * (img.width / img.height),
+-    x: text.width() + 16,
++    y: brandingHeight + 4,
+   });
++  credit.x(issuer.x() + issuer.width() - credit.width());
++
++  // The credit is the wider line: everything moves right so the group starts at 0 (the QR code is placed
++  // from the group's width).
++  if (credit.x() < 0) {
++    const shift = -credit.x();
++    text.x(text.x() + shift);
++    issuer.x(issuer.x() + shift);
++    credit.x(0);
++  }
+ 
+   const qrSize = qrToken ? 72 : 0;
+ 
+@@ -599,7 +657,8 @@ const renderBranding = async ({ qrToken, i18n }: { qrToken: string | null; i18n:
+     y: qrSize + 16,
+   });
+   logoGroup.add(text);
+-  logoGroup.add(documensoImage);
++  logoGroup.add(issuer);
++  logoGroup.add(credit);
+ 
+   branding.add(logoGroup);
+ 
+@@ -755,6 +814,7 @@ export async function renderCertificate({
+   const tables = renderTables({ groupedRows, columnWidths, i18n });
+ 
+   const brandingGroup = await renderBranding({ qrToken, i18n });
++  const hteLogo = loadHteLogo();
+   const brandingRect = brandingGroup.getClientRect();
+   const brandingTopPadding = 24;
+ 
+@@ -788,6 +848,12 @@ export async function renderCertificate({
+     group.add(titleText);
+     group.add(table);
+ 
++    const pageLogo = renderHteLogo(hteLogo, margin + tableWidth);
++
++    if (pageLogo) {
++      page.add(pageLogo);
++    }
++
+     // Add QR code and branding on the last page if there is space.
+     if (index === tables.length - 1 && !hidePoweredBy) {
+       const remainingHeight = pageHeight - group.getClientRect().height - pageBottomMargin;
+@@ -841,6 +907,13 @@ export async function renderCertificate({
+     });
+     page.add(overflowFooterText);
+ 
++    const overflowLogo = renderHteLogo(hteLogo, margin + tableWidth);
++
++    if (overflowLogo) {
++      page.add(overflowLogo);
++      brandingGroup.y(pageTopMargin);
++    }
++
+     page.add(brandingGroup);
+     stage.add(page);
+ 

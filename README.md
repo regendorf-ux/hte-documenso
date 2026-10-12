@@ -9,6 +9,7 @@ look on top:
 - a light / dark switch (it starts from the device's own setting);
 - htepr.com's fonts (Archivo and Source Sans 3, both under the SIL Open Font License);
 - a "Powered by Documenso · source" line on every page, linking here.
+- HTE's logo on the signing certificate, which names HTE, Inc. as its issuer (Documenso still credited).
 
 Nothing about how documents are signed, sealed or stored is changed.
 
