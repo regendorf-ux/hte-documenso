@@ -91,6 +91,34 @@ class Documenso:
                        files={"files": (file_name, pdf, "application/pdf")})
         return r.json()["id"]
 
+    def create_general(self, *, title: str, external_id: str, pdf: bytes, file_name: str, recipients: list[dict],
+                       fields: list[dict], order: str = "PARALLEL", language: str = "en",
+                       timezone: str = "America/Puerto_Rico") -> str:
+        """An envelope for HTE PDFCraft's Send for signature (esign.py): any recipients, their fields
+        already in percent of the page. Not yet sent (distribute with EMAIL does that). Returns its id."""
+        recs = []
+        for i, r in enumerate(recipients):
+            own = [{"type": f["type"], "page": f["page"], "positionX": f["x"], "positionY": f["y"],
+                    "width": f["width"], "height": f["height"],
+                    **({"fieldMeta": {"type": f["type"].lower(), "required": bool(f.get("required"))}}
+                       if f["type"] in ("SIGNATURE", "TEXT", "DATE", "NAME", "EMAIL", "INITIALS") else {})}
+                   for f in fields if f["recipient"] == i]
+            recs.append({"email": r["email"], "name": r["name"], "role": r.get("role", "SIGNER"),
+                         "signingOrder": i + 1, "fields": own})
+        payload = {
+            "title": title, "type": "DOCUMENT", "externalId": external_id, "recipients": recs,
+            "meta": {"signingOrder": order, "distributionMethod": "NONE", "language": language, "timezone": timezone,
+                     "dateFormat": "MM/dd/yyyy", "typedSignatureEnabled": True, "drawSignatureEnabled": True,
+                     "uploadSignatureEnabled": True,
+                     "emailSettings": {"recipientSigningRequest": True, "recipientRemoved": False, "recipientSigned": False,
+                                       "documentPending": False, "documentCompleted": True, "documentDeleted": False,
+                                       "ownerDocumentCompleted": False, "ownerRecipientExpired": False,
+                                       "ownerDocumentCreated": False}},
+        }
+        r = self._call("POST", "/envelope/create", data={"payload": json.dumps(payload)},
+                       files={"files": (file_name, pdf, "application/pdf")})
+        return r.json()["id"]
+
     def distribute(self, envelope_id: str, method: str = "NONE", subject: str = "", message: str = "",
                    language: str = "en") -> list[dict]:
         """Opens the envelope for signing; returns the recipients with their signing links."""
