@@ -1444,7 +1444,7 @@ index 474b6d8..8b5dd15 100644
 +  openSignature: z.boolean().optional(),
  });
 diff --git a/packages/ui/primitives/signature-pad/signature-pad-type.tsx b/packages/ui/primitives/signature-pad/signature-pad-type.tsx
-index 45e94c7..1a950d7 100644
+index 45e94c7..a236d41 100644
 --- a/packages/ui/primitives/signature-pad/signature-pad-type.tsx
 +++ b/packages/ui/primitives/signature-pad/signature-pad-type.tsx
 @@ -1,5 +1,5 @@
@@ -1454,7 +1454,7 @@ index 45e94c7..1a950d7 100644
  
  import { cn } from '../../lib/utils';
  
-@@ -14,6 +14,43 @@ export const SignaturePadType = ({ className, value, defaultValue, onChange }: S
+@@ -14,6 +14,44 @@ export const SignaturePadType = ({ className, value, defaultValue, onChange }: S
    const { t } = useLingui();
  
    const $isDirty = useRef(false);
@@ -1482,7 +1482,8 @@ index 45e94c7..1a950d7 100644
 +      const largest = 72;
 +      context.font = `${largest}px ${style.fontFamily}`;
 +      const wide = context.measureText(input.value).width;
-+      const room = input.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
++      // 90%: the handwriting font's slanted letters reach past the width the browser measures.
++      const room = 0.9 * (input.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight));
 +
 +      setFontSize(wide > room && room > 0 ? Math.max(24, Math.floor((largest * room) / wide)) : undefined);
 +    };
@@ -1498,7 +1499,7 @@ index 45e94c7..1a950d7 100644
    // Colors don't actually work for text.
  
    useEffect(() => {
-@@ -26,10 +63,11 @@ export const SignaturePadType = ({ className, value, defaultValue, onChange }: S
+@@ -26,10 +64,11 @@ export const SignaturePadType = ({ className, value, defaultValue, onChange }: S
    return (
      <div className={cn('flex h-full w-full items-center justify-center', className)}>
        <input

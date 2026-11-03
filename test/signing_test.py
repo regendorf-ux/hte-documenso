@@ -161,7 +161,7 @@ def phone_look(browser, url: str, out: Path) -> None:
         btn.wait_for(timeout=10000)
         box = btn.bounding_box()
         pg.screenshot(path=str(out / "phone-customer.png"))
-        check("on a phone, Sign as is one line across the bar", box["height"] <= 48 and box["width"] >= 300, box)
+        check("on a phone, Sign as is one line across the bar", box["height"] <= 48 and box["width"] >= 300, str(box))
     except Exception as exc:  # noqa: BLE001
         pg.screenshot(path=str(out / "failed-phone-customer.png"))
         check("on a phone, Sign as is one line across the bar", False, repr(exc))
@@ -184,7 +184,7 @@ def sign_as(browser, url: str, label: str, out: Path, embed: dict | None = None,
                 pg.wait_for_timeout(800)
                 widths = pg.eval_on_selector("[data-testid=signature-pad-type-input]", "e => [e.scrollWidth, e.clientWidth]")
                 pg.screenshot(path=str(out / "phone-technician.png"))
-                check("on a phone, the typed name fits its box", widths[0] <= widths[1] + 1, widths)
+                check("on a phone, the typed name fits its box", widths[0] <= widths[1] + 1, str(widths))
             return sign_and_finish(pg, label, out, opened=True)
         # HTE: a signer with one signature left (and name/date boxes) gets "Sign as <name>"; required here.
         try:
