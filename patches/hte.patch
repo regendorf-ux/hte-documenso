@@ -888,6 +888,51 @@ index 6c059b9..4bbc60a 100644
      },
      {
        name: 'description',
+diff --git a/apps/remix/server/security-headers.ts b/apps/remix/server/security-headers.ts
+index 8706589..9c27050 100644
+--- a/apps/remix/server/security-headers.ts
++++ b/apps/remix/server/security-headers.ts
+@@ -1,5 +1,7 @@
+ import { createMiddleware } from 'hono/factory';
+ 
++import { env } from '@documenso/lib/utils/env';
++
+ import type { HonoEnv } from './router';
+ 
+ /**
+@@ -68,6 +70,23 @@ const generateNonce = () => {
+ 
+ type CspPathKind = 'embed' | 'embed-auth' | 'frameable' | 'default';
+ 
++/**
++ * HTE: who may frame the embed and directly-frameable signing pages. Upstream allows any origin
++ * (`*`). When `NEXT_PRIVATE_EMBED_FRAME_ANCESTORS` is set (space-separated CSP sources, e.g. a
++ * program's own scheme and the sites that embed signing), only those may; unset keeps `*`. Kept
++ * out of the code so this public copy names no deployment. A signing link's token still decides
++ * whose page it is.
++ */
++const SOURCE_REGEX = /^('self'|[a-z][a-z0-9+.-]*:(\/\/[a-z0-9.*-]+(:\d+)?)?)$/i;
++
++const frameAncestors = (): string => {
++  const sources = String(env('NEXT_PRIVATE_EMBED_FRAME_ANCESTORS') ?? '')
++    .split(/\s+/)
++    .filter((source) => SOURCE_REGEX.test(source));
++
++  return sources.length > 0 ? sources.join(' ') : '*';
++};
++
+ const buildCspHeader = ({ nonce, kind }: { nonce: string; kind: CspPathKind }) => {
+   // `'self'` is included alongside `'strict-dynamic'` as a fallback for
+   // browsers that don't understand `'strict-dynamic'`. Modern browsers
+@@ -103,7 +122,7 @@ const buildCspHeader = ({ nonce, kind }: { nonce: string; kind: CspPathKind }) =
+   }
+ 
+   if (kind === 'embed' || kind === 'frameable') {
+-    directives.push(`frame-ancestors *`);
++    directives.push(`frame-ancestors ${frameAncestors()}`);
+   } else if (kind === 'embed-auth') {
+     directives.push(`frame-ancestors 'none'`);
+   } else {
 diff --git a/packages/lib/server-only/pdf/render-certificate.ts b/packages/lib/server-only/pdf/render-certificate.ts
 index 9fa2a73..4717a82 100644
 --- a/packages/lib/server-only/pdf/render-certificate.ts
