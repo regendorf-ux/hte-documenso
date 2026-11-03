@@ -18,6 +18,7 @@ Writes results/results.json and results/*.png; exits non-zero if any check faile
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import re
 import secrets
@@ -26,6 +27,7 @@ import subprocess
 import sys
 import time
 import traceback
+import urllib.parse
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -121,12 +123,44 @@ def setup_account(browser, base: str, sql: str, out: Path) -> tuple[str, str, st
 
 
 # ---------------------------------------------------------------- signing, as a person would
-def sign_as(browser, url: str, label: str, out: Path) -> bool:
+def embed_url(url: str, **data) -> str:
+    """The signing link as the CSR app shows it, inside its own page: /embed/sign/<token>#<data>."""
+    token = url.rstrip("/").rsplit("/", 1)[-1]
+    packed = base64.b64encode(urllib.parse.quote(json.dumps(data)).encode()).decode()
+    return url.split("/sign/", 1)[0] + f"/embed/sign/{token}#{packed}"
+
+
+def sign_and_finish(pg: Page, label: str, out: Path, opened: bool) -> bool:
+    """HTE's one-signature path: "Sign as <name>" (or the window opened by itself), then "Sign and finish"."""
+    if not opened:
+        pg.get_by_role("button", name=re.compile(r"^Sign as ")).first.click()
+        pg.wait_for_timeout(1500)
+    dialog = pg.locator("[role=dialog]")
+    dialog.get_by_role("button", name="Sign and finish").wait_for(timeout=10000)
+    finish = dialog.get_by_role("button", name="Sign and finish").first
+    if not finish.is_enabled():          # nothing typed for us: draw it
+        draw_signature(pg)
+    pg.screenshot(path=str(out / f"sign-and-finish-{label.split()[-1]}.png"))
+    finish.click()
+    pg.wait_for_timeout(5000)
+    still = pg.get_by_role("button", name=re.compile(r"^Sign as ")).count()
+    return check(f"{label} signed with Sign and finish", not still)
+
+
+def sign_as(browser, url: str, label: str, out: Path, embed: dict | None = None) -> bool:
     ctx = browser.new_context(viewport={"width": 1440, "height": 900})
     pg = ctx.new_page()
     try:
-        pg.goto(url)
+        pg.goto(embed_url(url, **embed) if embed else url)
         settle(pg)
+        if embed and embed.get("openSignature"):
+            # The CSR app's technician: the window opens by itself, the typed name first.
+            pg.locator("[role=dialog]").get_by_role("button", name="Sign and finish").wait_for(timeout=10000)
+            typed = pg.locator("[role=dialog] [role=tab][data-state=active]").first.inner_text().strip()
+            check("the technician's window opened by itself, on Type", typed == "Type", typed)
+            return sign_and_finish(pg, label, out, opened=True)
+        if pg.get_by_role("button", name=re.compile(r"^Sign as ")).count():
+            return sign_and_finish(pg, label, out, opened=False)
         for _ in range(8):
             nxt = pg.get_by_role("button", name="Next Field").first
             if not nxt.is_visible():
@@ -253,7 +287,8 @@ def main() -> int:
             if not check("opened for signing without e-mail, two signing links", len(links) == 2, str(recipients)[:300]):
                 raise SystemExit(1)
 
-            sign_as(browser, links[0], "the technician", out)
+            sign_as(browser, links[0], "the technician", out,
+                    embed={"name": "Test Technician", "lockName": True, "preferTypedSignature": True, "openSignature": True})
             sign_as(browser, links[1], "the customer", out)
 
             status, envelope = "", {}

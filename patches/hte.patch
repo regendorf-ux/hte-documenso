@@ -8,34 +8,111 @@ index 359a109..e032e6b 100644
  
  /* Inter Variable Fonts */
  @font-face {
+diff --git a/apps/remix/app/components/dialogs/sign-field-signature-dialog.tsx b/apps/remix/app/components/dialogs/sign-field-signature-dialog.tsx
+index 1779cfa..beecbf6 100644
+--- a/apps/remix/app/components/dialogs/sign-field-signature-dialog.tsx
++++ b/apps/remix/app/components/dialogs/sign-field-signature-dialog.tsx
+@@ -13,10 +13,22 @@ export type SignFieldSignatureDialogProps = {
+   typedSignatureEnabled?: boolean;
+   uploadSignatureEnabled?: boolean;
+   drawSignatureEnabled?: boolean;
++  // HTE: the window's title and button for "Sign and finish" (hte-quick-sign.tsx).
++  hteTitle?: string;
++  hteSignLabel?: string;
+ };
+ 
+ export const SignFieldSignatureDialog = createCallable<SignFieldSignatureDialogProps, string | null>(
+-  ({ call, fullName, typedSignatureEnabled, uploadSignatureEnabled, drawSignatureEnabled, initialSignature }) => {
++  ({
++    call,
++    fullName,
++    typedSignatureEnabled,
++    uploadSignatureEnabled,
++    drawSignatureEnabled,
++    initialSignature,
++    hteTitle,
++    hteSignLabel,
++  }) => {
+     const [localSignature, setLocalSignature] = useState(initialSignature);
+ 
+     return (
+@@ -24,9 +36,7 @@ export const SignFieldSignatureDialog = createCallable<SignFieldSignatureDialogP
+         <DialogContent position="center">
+           <div>
+             <DialogHeader>
+-              <DialogTitle>
+-                <Trans>Sign Signature Field</Trans>
+-              </DialogTitle>
++              <DialogTitle>{hteTitle ?? <Trans>Sign Signature Field</Trans>}</DialogTitle>
+             </DialogHeader>
+ 
+             <SignaturePad
+@@ -47,7 +57,7 @@ export const SignFieldSignatureDialog = createCallable<SignFieldSignatureDialogP
+             </Button>
+ 
+             <Button type="button" disabled={!localSignature} onClick={() => call.end(localSignature || null)}>
+-              <Trans>Sign</Trans>
++              {hteSignLabel ?? <Trans>Sign</Trans>}
+             </Button>
+           </DialogFooter>
+         </DialogContent>
 diff --git a/apps/remix/app/components/embed/embed-document-signing-page-v1.tsx b/apps/remix/app/components/embed/embed-document-signing-page-v1.tsx
-index afd9a77..2548c25 100644
+index afd9a77..3b79830 100644
 --- a/apps/remix/app/components/embed/embed-document-signing-page-v1.tsx
 +++ b/apps/remix/app/components/embed/embed-document-signing-page-v1.tsx
-@@ -235,6 +235,11 @@ export const EmbedSignDocumentV1ClientPage = ({
+@@ -32,15 +32,16 @@ import { LucideChevronDown, LucideChevronUp } from 'lucide-react';
+ import { useEffect, useId, useLayoutEffect, useMemo, useState } from 'react';
+ 
+ import { BrandingLogo } from '~/components/general/branding-logo';
++import { hteRememberEmbedData } from '~/components/general/envelope-signing/hte-quick-sign';
+ import PDFViewerLazy from '~/components/general/pdf-viewer/pdf-viewer-lazy';
+ import { injectCss } from '~/utils/css-vars';
+ import { getSigningCompletionErrorMessage } from '~/utils/toast-error-messages';
+-
+ import { DocumentSigningAttachmentsPopover } from '../general/document-signing/document-signing-attachments-popover';
+ import { useRequiredDocumentSigningContext } from '../general/document-signing/document-signing-provider';
+ import { DocumentSigningRecipientProvider } from '../general/document-signing/document-signing-recipient-provider';
+ import { DocumentSigningRejectDialog } from '../general/document-signing/document-signing-reject-dialog';
+ import { EmbedClientLoading } from './embed-client-loading';
++
+ import { EmbedDocumentCompleted } from './embed-document-completed';
+ import { EmbedDocumentFields } from './embed-document-fields';
+ import { EmbedDocumentRejected } from './embed-document-rejected';
+@@ -235,6 +236,9 @@ export const EmbedSignDocumentV1ClientPage = ({
      try {
        const data = ZSignDocumentEmbedDataSchema.parse(JSON.parse(decodeURIComponent(atob(hash))));
  
-+      // HTE: the signature pad reads this when it opens (signature-pad.tsx).
-+      if (data.preferTypedSignature) {
-+        (window as unknown as { __htePreferTypedSignature?: boolean }).__htePreferTypedSignature = true;
-+      }
++      // HTE: typed signature first, the signature window opened by itself (hte-quick-sign.tsx).
++      hteRememberEmbedData(data);
 +
        if (!isCompleted && data.name && !fullName) {
          setFullName(data.name);
        }
 diff --git a/apps/remix/app/components/embed/embed-document-signing-page-v2.tsx b/apps/remix/app/components/embed/embed-document-signing-page-v2.tsx
-index 8973a23..adbbadb 100644
+index 8973a23..1e8e370 100644
 --- a/apps/remix/app/components/embed/embed-document-signing-page-v2.tsx
 +++ b/apps/remix/app/components/embed/embed-document-signing-page-v2.tsx
-@@ -137,6 +137,11 @@ export const EmbedSignDocumentV2ClientPage = ({
+@@ -6,12 +6,12 @@ import { dynamicActivate } from '@documenso/lib/utils/i18n';
+ import { useLingui } from '@lingui/react';
+ import { EnvelopeType } from '@prisma/client';
+ import { useEffect, useLayoutEffect, useState } from 'react';
+-
++import { hteRememberEmbedData } from '~/components/general/envelope-signing/hte-quick-sign';
+ import { injectCss } from '~/utils/css-vars';
+-
+ import { DocumentSigningPageViewV2 } from '../general/document-signing/document-signing-page-view-v2';
+ import { useRequiredEnvelopeSigningContext } from '../general/document-signing/envelope-signing-provider';
+ import { EmbedClientLoading } from './embed-client-loading';
++
+ import { EmbedDocumentCompleted } from './embed-document-completed';
+ import { EmbedDocumentRejected } from './embed-document-rejected';
+ import { EmbedSigningProvider } from './embed-signing-context';
+@@ -137,6 +137,9 @@ export const EmbedSignDocumentV2ClientPage = ({
      try {
        const data = ZSignDocumentEmbedDataSchema.parse(JSON.parse(decodeURIComponent(atob(hash))));
  
-+      // HTE: the signature pad reads this when it opens (signature-pad.tsx).
-+      if (data.preferTypedSignature) {
-+        (window as unknown as { __htePreferTypedSignature?: boolean }).__htePreferTypedSignature = true;
-+      }
++      // HTE: typed signature first, the signature window opened by itself (hte-quick-sign.tsx).
++      hteRememberEmbedData(data);
 +
        if (!isCompleted && data.name) {
          // For documents, only use the hash name if the recipient doesn't already have one.
@@ -192,6 +269,215 @@ index d4cddf1..51ec9db 100644
          <MobileDropdownMenu />
        </div>
      </nav>
+diff --git a/apps/remix/app/components/general/envelope-signing/envelope-signing-complete-dialog.tsx b/apps/remix/app/components/general/envelope-signing/envelope-signing-complete-dialog.tsx
+index 3f836be..3ca6320 100644
+--- a/apps/remix/app/components/general/envelope-signing/envelope-signing-complete-dialog.tsx
++++ b/apps/remix/app/components/general/envelope-signing/envelope-signing-complete-dialog.tsx
+@@ -21,6 +21,7 @@ import { useEmbedSigningContext } from '~/components/embed/embed-signing-context
+ import { DocumentSigningCompleteDialog } from '../document-signing/document-signing-complete-dialog';
+ import { useRequiredEnvelopeSigningContext } from '../document-signing/envelope-signing-provider';
+ import { EnvelopeSigningCscStatus } from './envelope-signing-csc-status';
++import { HteQuickSignButton, useHteQuickSignField } from './hte-quick-sign';
+ 
+ type PendingCscSigning = Extract<EmbedPopupAuthCscOptions, { scope: 'credential' }>;
+ 
+@@ -372,6 +373,19 @@ export const EnvelopeSignerCompleteDialog = () => {
+ 
+   const isSubmitting = isPending || isSigningWithCsc || isCscPopupBusy || isRedirecting;
+ 
++  // HTE: one signature left - "Sign as <name>", then "Sign and finish" (hte-quick-sign.tsx).
++  const hteQuickField = useHteQuickSignField();
++
++  if (hteQuickField) {
++    return (
++      <HteQuickSignButton
++        onNextField={handleOnNextFieldClick}
++        onComplete={async (nextSigner, accessAuthOptions) => handleOnCompleteClick(nextSigner, accessAuthOptions)}
++        isSubmitting={isSubmitting}
++      />
++    );
++  }
++
+   return (
+     <DocumentSigningCompleteDialog
+       isSubmitting={isSubmitting}
+diff --git a/apps/remix/app/components/general/envelope-signing/hte-quick-sign.tsx b/apps/remix/app/components/general/envelope-signing/hte-quick-sign.tsx
+new file mode 100644
+index 0000000..cc724eb
+--- /dev/null
++++ b/apps/remix/app/components/general/envelope-signing/hte-quick-sign.tsx
+@@ -0,0 +1,171 @@
++/**
++ * HTE, Inc.: fewer steps for a signer whose one remaining required field is a signature.
++ *
++ * - The main button reads "Sign as <name>" instead of "Next Field": it brings the field into view
++ *   and opens the signature window, whose button reads "Sign and finish".
++ * - "Sign and finish" signs the field and completes the signer's part at once: no "Complete"
++ *   button and no second "Are you sure?" window. The consent text stays in the signature window,
++ *   where the person signs.
++ * - An embed that asks for it (`openSignature` in the embed's data) opens that window by itself once
++ *   the page has loaded, typed signature first when it also asks for `preferTypedSignature`. The
++ *   service-report app asks this for its own technician only; a customer always sees the document
++ *   first and presses the button.
++ *
++ * Anything else (several fields left, two-factor completion, TSP signing, direct templates,
++ * approvers and viewers) keeps Documenso's own flow.
++ */
++import { AppError } from '@documenso/lib/errors/app-error';
++import type { TRecipientAccessAuth } from '@documenso/lib/types/document-auth';
++import { isTspEnvelope } from '@documenso/lib/types/signature-level';
++import { Button } from '@documenso/ui/primitives/button';
++import { useToast } from '@documenso/ui/primitives/use-toast';
++import { Trans, useLingui } from '@lingui/react/macro';
++import { FieldType, RecipientRole } from '@prisma/client';
++import { useEffect, useRef, useState } from 'react';
++
++import { SignFieldSignatureDialog } from '~/components/dialogs/sign-field-signature-dialog';
++import { getSigningCompletionErrorMessage } from '~/utils/toast-error-messages';
++
++import { useRequiredDocumentSigningAuthContext } from '../document-signing/document-signing-auth-provider';
++import { useRequiredEnvelopeSigningContext } from '../document-signing/envelope-signing-provider';
++
++type HteWindow = { __htePreferTypedSignature?: boolean; __hteOpenSignature?: boolean };
++
++const hteWindow = () => (typeof window === 'undefined' ? {} : (window as unknown as HteWindow));
++
++/** Read by the embed pages when they parse their data (embed-document-signing-page-v1/v2.tsx). */
++export const hteRememberEmbedData = (data: { preferTypedSignature?: boolean; openSignature?: boolean }) => {
++  if (typeof window === 'undefined') {
++    return;
++  }
++
++  if (data.preferTypedSignature) {
++    hteWindow().__htePreferTypedSignature = true;
++  }
++
++  if (data.openSignature) {
++    hteWindow().__hteOpenSignature = true;
++  }
++};
++
++/** Read by the signature pad when it opens (signature-pad.tsx). */
++export const htePrefersTypedSignature = () => Boolean(hteWindow().__htePreferTypedSignature);
++
++// The button is drawn twice (the header and the phone's bottom bar): open the window once per page.
++const autoOpened = new Set<string>();
++
++type HteQuickSignProps = {
++  onNextField: () => void;
++  onComplete: (nextSigner?: { name: string; email: string }, accessAuthOptions?: TRecipientAccessAuth) => Promise<void>;
++  isSubmitting: boolean;
++};
++
++/** The single signature field this signer may sign-and-finish, or null for Documenso's own flow. */
++export const useHteQuickSignField = () => {
++  const { envelope, recipient, recipientFieldsRemaining, isDirectTemplate } = useRequiredEnvelopeSigningContext();
++  const { derivedRecipientAccessAuth } = useRequiredDocumentSigningAuthContext();
++
++  if (
++    isDirectTemplate ||
++    recipient.role !== RecipientRole.SIGNER ||
++    isTspEnvelope(envelope) ||
++    !recipient.email ||
++    derivedRecipientAccessAuth.includes('TWO_FACTOR_AUTH') ||
++    recipientFieldsRemaining.length !== 1 ||
++    recipientFieldsRemaining[0].type !== FieldType.SIGNATURE
++  ) {
++    return null;
++  }
++
++  return recipientFieldsRemaining[0];
++};
++
++export const HteQuickSignButton = ({ onNextField, onComplete, isSubmitting }: HteQuickSignProps) => {
++  const { t, i18n } = useLingui();
++  const { toast } = useToast();
++
++  const { envelope, recipient, fullName, signature, setSignature, signField } = useRequiredEnvelopeSigningContext();
++  const { executeActionAuthProcedure } = useRequiredDocumentSigningAuthContext();
++
++  const field = useHteQuickSignField();
++  const [isWorking, setIsWorking] = useState(false);
++  const running = useRef(false);
++
++  const name = recipient.name || fullName;
++
++  const run = async () => {
++    if (!field || running.current) {
++      return;
++    }
++
++    running.current = true;
++    onNextField();
++
++    try {
++      const value = await SignFieldSignatureDialog.call({
++        fullName: name,
++        initialSignature: signature ?? undefined,
++        typedSignatureEnabled: envelope.documentMeta.typedSignatureEnabled,
++        uploadSignatureEnabled: envelope.documentMeta.uploadSignatureEnabled,
++        drawSignatureEnabled: envelope.documentMeta.drawSignatureEnabled,
++        hteTitle: name ? t`Sign as ${name}` : undefined,
++        hteSignLabel: t`Sign and finish`,
++      });
++
++      if (!value) {
++        return;
++      }
++
++      setIsWorking(true);
++
++      await executeActionAuthProcedure({
++        actionTarget: FieldType.SIGNATURE,
++        onReauthFormSubmit: async (authOptions) => {
++          await signField(field.id, { type: FieldType.SIGNATURE, value }, authOptions);
++        },
++      });
++
++      setSignature(value);
++
++      await onComplete(undefined, undefined);
++    } catch (error) {
++      const err = AppError.parseError(error);
++      const message = getSigningCompletionErrorMessage(err.code);
++
++      toast({ title: i18n._(message.title), description: i18n._(message.description), variant: 'destructive' });
++    } finally {
++      running.current = false;
++      setIsWorking(false);
++    }
++  };
++
++  useEffect(() => {
++    if (!field || autoOpened.has(recipient.token)) {
++      return;
++    }
++
++    // The embed reads its data after this mounts: look once the page has settled.
++    const timer = setTimeout(() => {
++      if (hteWindow().__hteOpenSignature && !autoOpened.has(recipient.token)) {
++        autoOpened.add(recipient.token);
++        void run();
++      }
++    }, 800);
++
++    return () => clearTimeout(timer);
++    // eslint-disable-next-line react-hooks/exhaustive-deps
++  }, [field?.id, recipient.token]);
++
++  return (
++    <Button
++      className="w-full"
++      type="button"
++      size="sm"
++      loading={isSubmitting || isWorking}
++      disabled={!field}
++      onClick={() => void run()}
++    >
++      {name ? <Trans>Sign as {name}</Trans> : <Trans>Sign</Trans>}
++    </Button>
++  );
++};
 diff --git a/apps/remix/app/components/general/hte.tsx b/apps/remix/app/components/general/hte.tsx
 new file mode 100644
 index 0000000..b29c798
@@ -1075,16 +1361,34 @@ index 9fa2a73..4717a82 100644
      page.add(brandingGroup);
      stage.add(page);
  
+diff --git a/packages/lib/translations/es/web.po b/packages/lib/translations/es/web.po
+index 8e7abea..baa8e55 100644
+--- a/packages/lib/translations/es/web.po
++++ b/packages/lib/translations/es/web.po
+@@ -15322,3 +15322,11 @@ msgstr "Su código de verificación:"
+ #: apps/remix/app/routes/_authenticated+/o.$orgUrl.settings.sso.tsx
+ msgid "your-domain.com another-domain.com"
+ msgstr "su-dominio.com otro-dominio.com"
++
++# HTE (hte-quick-sign.tsx)
++msgid "Sign as {name}"
++msgstr "Firmar como {name}"
++
++# HTE (hte-quick-sign.tsx)
++msgid "Sign and finish"
++msgstr "Firmar y terminar"
 diff --git a/packages/lib/types/embed-document-sign-schema.ts b/packages/lib/types/embed-document-sign-schema.ts
-index 474b6d8..0cd018c 100644
+index 474b6d8..8b5dd15 100644
 --- a/packages/lib/types/embed-document-sign-schema.ts
 +++ b/packages/lib/types/embed-document-sign-schema.ts
-@@ -16,4 +16,6 @@ export const ZSignDocumentEmbedDataSchema = ZBaseEmbedDataSchema.extend({
+@@ -16,4 +16,8 @@ export const ZSignDocumentEmbedDataSchema = ZBaseEmbedDataSchema.extend({
    lockName: z.boolean().optional().default(false),
    allowDocumentRejection: z.boolean().optional(),
    showOtherRecipientsCompletedFields: z.boolean().optional(),
 +  // HTE: open the signature pad on the typed signature (HTE Receivables' Send to Fondo, 2026-11-03).
 +  preferTypedSignature: z.boolean().optional(),
++  // HTE: open the signature window by itself once the page has loaded (hte-quick-sign.tsx).
++  openSignature: z.boolean().optional(),
  });
 diff --git a/packages/ui/primitives/signature-pad/signature-pad.tsx b/packages/ui/primitives/signature-pad/signature-pad.tsx
 index 734daaa..53634af 100644
