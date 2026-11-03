@@ -147,8 +147,30 @@ def sign_and_finish(pg: Page, label: str, out: Path, opened: bool) -> bool:
     return check(f"{label} signed with Sign and finish", not still)
 
 
-def sign_as(browser, url: str, label: str, out: Path, embed: dict | None = None) -> bool:
-    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+PHONE = dict(viewport={"width": 390, "height": 844}, device_scale_factor=2, is_mobile=True, has_touch=True)
+
+
+def phone_look(browser, url: str, out: Path) -> None:
+    """HTE: the customer's page on a phone - "Sign as <name>" the bar's width, on one line."""
+    ctx = browser.new_context(**PHONE)
+    pg = ctx.new_page()
+    try:
+        pg.goto(url)
+        settle(pg)
+        btn = pg.get_by_role("button", name=re.compile(r"^Sign as ")).first
+        btn.wait_for(timeout=10000)
+        box = btn.bounding_box()
+        pg.screenshot(path=str(out / "phone-customer.png"))
+        check("on a phone, Sign as is one line across the bar", box["height"] <= 48 and box["width"] >= 300, box)
+    except Exception as exc:  # noqa: BLE001
+        pg.screenshot(path=str(out / "failed-phone-customer.png"))
+        check("on a phone, Sign as is one line across the bar", False, repr(exc))
+    finally:
+        ctx.close()
+
+
+def sign_as(browser, url: str, label: str, out: Path, embed: dict | None = None, phone: bool = False) -> bool:
+    ctx = browser.new_context(**PHONE) if phone else browser.new_context(viewport={"width": 1440, "height": 900})
     pg = ctx.new_page()
     try:
         pg.goto(embed_url(url, **embed) if embed else url)
@@ -158,6 +180,11 @@ def sign_as(browser, url: str, label: str, out: Path, embed: dict | None = None)
             pg.locator("[role=dialog]").get_by_role("button", name="Sign and finish").wait_for(timeout=10000)
             typed = pg.locator("[role=dialog] [role=tab][data-state=active]").first.inner_text().strip()
             check("the technician's window opened by itself, on Type", typed == "Type", typed)
+            if phone:
+                pg.wait_for_timeout(800)
+                widths = pg.eval_on_selector("[data-testid=signature-pad-type-input]", "e => [e.scrollWidth, e.clientWidth]")
+                pg.screenshot(path=str(out / "phone-technician.png"))
+                check("on a phone, the typed name fits its box", widths[0] <= widths[1] + 1, widths)
             return sign_and_finish(pg, label, out, opened=True)
         # HTE: a signer with one signature left (and name/date boxes) gets "Sign as <name>"; required here.
         try:
@@ -293,7 +320,9 @@ def main() -> int:
                 raise SystemExit(1)
 
             sign_as(browser, links[0], "the technician", out,
-                    embed={"name": "Test Technician", "lockName": True, "preferTypedSignature": True, "openSignature": True})
+                    embed={"name": "Test Technician", "lockName": True, "preferTypedSignature": True, "openSignature": True},
+                    phone=True)
+            phone_look(browser, links[1], out)
             sign_as(browser, links[1], "the customer", out)
 
             status, envelope = "", {}
