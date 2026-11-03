@@ -8,6 +8,38 @@ index 359a109..e032e6b 100644
  
  /* Inter Variable Fonts */
  @font-face {
+diff --git a/apps/remix/app/components/embed/embed-document-signing-page-v1.tsx b/apps/remix/app/components/embed/embed-document-signing-page-v1.tsx
+index afd9a77..2548c25 100644
+--- a/apps/remix/app/components/embed/embed-document-signing-page-v1.tsx
++++ b/apps/remix/app/components/embed/embed-document-signing-page-v1.tsx
+@@ -235,6 +235,11 @@ export const EmbedSignDocumentV1ClientPage = ({
+     try {
+       const data = ZSignDocumentEmbedDataSchema.parse(JSON.parse(decodeURIComponent(atob(hash))));
+ 
++      // HTE: the signature pad reads this when it opens (signature-pad.tsx).
++      if (data.preferTypedSignature) {
++        (window as unknown as { __htePreferTypedSignature?: boolean }).__htePreferTypedSignature = true;
++      }
++
+       if (!isCompleted && data.name && !fullName) {
+         setFullName(data.name);
+       }
+diff --git a/apps/remix/app/components/embed/embed-document-signing-page-v2.tsx b/apps/remix/app/components/embed/embed-document-signing-page-v2.tsx
+index 8973a23..adbbadb 100644
+--- a/apps/remix/app/components/embed/embed-document-signing-page-v2.tsx
++++ b/apps/remix/app/components/embed/embed-document-signing-page-v2.tsx
+@@ -137,6 +137,11 @@ export const EmbedSignDocumentV2ClientPage = ({
+     try {
+       const data = ZSignDocumentEmbedDataSchema.parse(JSON.parse(decodeURIComponent(atob(hash))));
+ 
++      // HTE: the signature pad reads this when it opens (signature-pad.tsx).
++      if (data.preferTypedSignature) {
++        (window as unknown as { __htePreferTypedSignature?: boolean }).__htePreferTypedSignature = true;
++      }
++
+       if (!isCompleted && data.name) {
+         // For documents, only use the hash name if the recipient doesn't already have one.
+         // For templates, always allow the hash name to be used.
 diff --git a/apps/remix/app/components/general/app-header.tsx b/apps/remix/app/components/general/app-header.tsx
 index 2717b80..eb23879 100644
 --- a/apps/remix/app/components/general/app-header.tsx
@@ -998,3 +1030,34 @@ index 9fa2a73..4717a82 100644
      page.add(brandingGroup);
      stage.add(page);
  
+diff --git a/packages/lib/types/embed-document-sign-schema.ts b/packages/lib/types/embed-document-sign-schema.ts
+index 474b6d8..0cd018c 100644
+--- a/packages/lib/types/embed-document-sign-schema.ts
++++ b/packages/lib/types/embed-document-sign-schema.ts
+@@ -16,4 +16,6 @@ export const ZSignDocumentEmbedDataSchema = ZBaseEmbedDataSchema.extend({
+   lockName: z.boolean().optional().default(false),
+   allowDocumentRejection: z.boolean().optional(),
+   showOtherRecipientsCompletedFields: z.boolean().optional(),
++  // HTE: open the signature pad on the typed signature (HTE Receivables' Send to Fondo, 2026-11-03).
++  preferTypedSignature: z.boolean().optional(),
+ });
+diff --git a/packages/ui/primitives/signature-pad/signature-pad.tsx b/packages/ui/primitives/signature-pad/signature-pad.tsx
+index 734daaa..53634af 100644
+--- a/packages/ui/primitives/signature-pad/signature-pad.tsx
++++ b/packages/ui/primitives/signature-pad/signature-pad.tsx
+@@ -67,6 +67,15 @@ export const SignaturePad = ({
+         return 'image';
+       }
+ 
++      // HTE: an embed that asks for it opens on the typed signature (HTE Receivables' Send to Fondo).
++      if (
++        typedSignatureEnabled &&
++        typeof window !== 'undefined' &&
++        (window as unknown as { __htePreferTypedSignature?: boolean }).__htePreferTypedSignature
++      ) {
++        return 'text';
++      }
++
+       // Second passthrough to just select the first avaliable tab.
+       if (drawSignatureEnabled) {
+         return 'draw';
