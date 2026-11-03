@@ -140,6 +140,16 @@ class Documenso:
     def get(self, envelope_id: str) -> dict:
         return self._call("GET", f"/envelope/{envelope_id}").json()
 
+    def audit_log(self, envelope_id: str) -> list[dict]:
+        """The envelope's audit log, every page (who did what, when, from which address)."""
+        out, page = [], 1
+        while True:
+            j = self._call("GET", f"/envelope/{envelope_id}/audit-log", params={"page": page, "perPage": 100}).json()
+            out += j.get("data") or []
+            if page >= int(j.get("totalPages") or 1):
+                return out
+            page += 1
+
     def cancel(self, envelope_id: str, reason: str = "") -> None:
         body = {"envelopeId": envelope_id}
         if reason:
