@@ -57,7 +57,7 @@ index 1779cfa..beecbf6 100644
            </DialogFooter>
          </DialogContent>
 diff --git a/apps/remix/app/components/embed/embed-document-signing-page-v1.tsx b/apps/remix/app/components/embed/embed-document-signing-page-v1.tsx
-index afd9a77..3b79830 100644
+index 8ec2a6f..26fc7c7 100644
 --- a/apps/remix/app/components/embed/embed-document-signing-page-v1.tsx
 +++ b/apps/remix/app/components/embed/embed-document-signing-page-v1.tsx
 @@ -32,15 +32,16 @@ import { LucideChevronDown, LucideChevronUp } from 'lucide-react';
@@ -78,7 +78,7 @@ index afd9a77..3b79830 100644
  import { EmbedDocumentCompleted } from './embed-document-completed';
  import { EmbedDocumentFields } from './embed-document-fields';
  import { EmbedDocumentRejected } from './embed-document-rejected';
-@@ -235,6 +236,9 @@ export const EmbedSignDocumentV1ClientPage = ({
+@@ -244,6 +245,9 @@ export const EmbedSignDocumentV1ClientPage = ({
      try {
        const data = ZSignDocumentEmbedDataSchema.parse(JSON.parse(decodeURIComponent(atob(hash))));
  
@@ -89,7 +89,7 @@ index afd9a77..3b79830 100644
          setFullName(data.name);
        }
 diff --git a/apps/remix/app/components/embed/embed-document-signing-page-v2.tsx b/apps/remix/app/components/embed/embed-document-signing-page-v2.tsx
-index 8973a23..1e8e370 100644
+index 0d31eaa..aff4c55 100644
 --- a/apps/remix/app/components/embed/embed-document-signing-page-v2.tsx
 +++ b/apps/remix/app/components/embed/embed-document-signing-page-v2.tsx
 @@ -6,12 +6,12 @@ import { dynamicActivate } from '@documenso/lib/utils/i18n';
@@ -107,7 +107,7 @@ index 8973a23..1e8e370 100644
  import { EmbedDocumentCompleted } from './embed-document-completed';
  import { EmbedDocumentRejected } from './embed-document-rejected';
  import { EmbedSigningProvider } from './embed-signing-context';
-@@ -137,6 +137,9 @@ export const EmbedSignDocumentV2ClientPage = ({
+@@ -146,6 +146,9 @@ export const EmbedSignDocumentV2ClientPage = ({
      try {
        const data = ZSignDocumentEmbedDataSchema.parse(JSON.parse(decodeURIComponent(atob(hash))));
  
@@ -1175,18 +1175,10 @@ index 6c059b9..4bbc60a 100644
      {
        name: 'description',
 diff --git a/apps/remix/server/security-headers.ts b/apps/remix/server/security-headers.ts
-index 8706589..9c27050 100644
+index 8706589..d5568cb 100644
 --- a/apps/remix/server/security-headers.ts
 +++ b/apps/remix/server/security-headers.ts
-@@ -1,5 +1,7 @@
- import { createMiddleware } from 'hono/factory';
- 
-+import { env } from '@documenso/lib/utils/env';
-+
- import type { HonoEnv } from './router';
- 
- /**
-@@ -68,6 +70,23 @@ const generateNonce = () => {
+@@ -68,6 +68,24 @@ const generateNonce = () => {
  
  type CspPathKind = 'embed' | 'embed-auth' | 'frameable' | 'default';
  
@@ -1195,12 +1187,13 @@ index 8706589..9c27050 100644
 + * (`*`). When `NEXT_PRIVATE_EMBED_FRAME_ANCESTORS` is set (space-separated CSP sources, e.g. a
 + * program's own scheme and the sites that embed signing), only those may; unset keeps `*`. Kept
 + * out of the code so this public copy names no deployment. A signing link's token still decides
-+ * whose page it is.
++ * whose page it is. Read from process.env directly: vite's config loads this file, where
++ * @documenso/lib/utils/env's extensionless imports do not resolve.
 + */
 +const SOURCE_REGEX = /^('self'|[a-z][a-z0-9+.-]*:(\/\/[a-z0-9.*-]+(:\d+)?)?)$/i;
 +
 +const frameAncestors = (): string => {
-+  const sources = String(env('NEXT_PRIVATE_EMBED_FRAME_ANCESTORS') ?? '')
++  const sources = String(process.env.NEXT_PRIVATE_EMBED_FRAME_ANCESTORS ?? '')
 +    .split(/\s+/)
 +    .filter((source) => SOURCE_REGEX.test(source));
 +
@@ -1210,7 +1203,7 @@ index 8706589..9c27050 100644
  const buildCspHeader = ({ nonce, kind }: { nonce: string; kind: CspPathKind }) => {
    // `'self'` is included alongside `'strict-dynamic'` as a fallback for
    // browsers that don't understand `'strict-dynamic'`. Modern browsers
-@@ -103,7 +122,7 @@ const buildCspHeader = ({ nonce, kind }: { nonce: string; kind: CspPathKind }) =
+@@ -103,7 +121,7 @@ const buildCspHeader = ({ nonce, kind }: { nonce: string; kind: CspPathKind }) =
    }
  
    if (kind === 'embed' || kind === 'frameable') {
@@ -1362,13 +1355,13 @@ index 9fa2a73..4717a82 100644
      stage.add(page);
  
 diff --git a/packages/lib/translations/es/web.po b/packages/lib/translations/es/web.po
-index 8e7abea..baa8e55 100644
+index 2f16d47..46cc9d0 100644
 --- a/packages/lib/translations/es/web.po
 +++ b/packages/lib/translations/es/web.po
-@@ -15322,3 +15322,11 @@ msgstr "Su código de verificación:"
- #: apps/remix/app/routes/_authenticated+/o.$orgUrl.settings.sso.tsx
- msgid "your-domain.com another-domain.com"
- msgstr "su-dominio.com otro-dominio.com"
+@@ -16260,3 +16260,11 @@ msgstr ""
+ #: packages/ui/primitives/signature-pad/signature-pad-upload.tsx
+ msgid "Zoom out"
+ msgstr ""
 +
 +# HTE (hte-quick-sign.tsx)
 +msgid "Sign as {name}"
