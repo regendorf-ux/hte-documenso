@@ -303,12 +303,13 @@ index 3f836be..3ca6320 100644
        isSubmitting={isSubmitting}
 diff --git a/apps/remix/app/components/general/envelope-signing/hte-quick-sign.tsx b/apps/remix/app/components/general/envelope-signing/hte-quick-sign.tsx
 new file mode 100644
-index 0000000..cc724eb
+index 0000000..0a046f9
 --- /dev/null
 +++ b/apps/remix/app/components/general/envelope-signing/hte-quick-sign.tsx
-@@ -0,0 +1,171 @@
+@@ -0,0 +1,193 @@
 +/**
-+ * HTE, Inc.: fewer steps for a signer whose one remaining required field is a signature.
++ * HTE, Inc.: fewer steps for a signer with one signature left (and perhaps name, date or e-mail boxes,
++ * which "Sign and finish" fills with the values a tap on them would).
 + *
 + * - The main button reads "Sign as <name>" instead of "Next Field": it brings the field into view
 + *   and opens the signature window, whose button reads "Sign and finish".
@@ -369,24 +370,33 @@ index 0000000..cc724eb
 +  isSubmitting: boolean;
 +};
 +
-+/** The single signature field this signer may sign-and-finish, or null for Documenso's own flow. */
++// Boxes a tap fills with what Documenso already knows (the signer's name and e-mail, today's date): "Sign and
++// finish" fills them as those taps would, so a signer with a name box and a date box still signs in one go.
++const FILLED_FOR_THEM: FieldType[] = [FieldType.NAME, FieldType.DATE, FieldType.EMAIL];
++
++/** The one signature this signer may sign-and-finish, and the boxes filled with it; null for Documenso's own flow. */
 +export const useHteQuickSignField = () => {
-+  const { envelope, recipient, recipientFieldsRemaining, isDirectTemplate } = useRequiredEnvelopeSigningContext();
++  const { envelope, recipient, recipientFieldsRemaining, isDirectTemplate, fullName } =
++    useRequiredEnvelopeSigningContext();
 +  const { derivedRecipientAccessAuth } = useRequiredDocumentSigningAuthContext();
++
++  const signatures = recipientFieldsRemaining.filter((field) => field.type === FieldType.SIGNATURE);
++  const fill = recipientFieldsRemaining.filter((field) => field.type !== FieldType.SIGNATURE);
 +
 +  if (
 +    isDirectTemplate ||
 +    recipient.role !== RecipientRole.SIGNER ||
 +    isTspEnvelope(envelope) ||
 +    !recipient.email ||
++    !(recipient.name || fullName) ||
 +    derivedRecipientAccessAuth.includes('TWO_FACTOR_AUTH') ||
-+    recipientFieldsRemaining.length !== 1 ||
-+    recipientFieldsRemaining[0].type !== FieldType.SIGNATURE
++    signatures.length !== 1 ||
++    !fill.every((field) => FILLED_FOR_THEM.includes(field.type))
 +  ) {
 +    return null;
 +  }
 +
-+  return recipientFieldsRemaining[0];
++  return { signature: signatures[0], fill };
 +};
 +
 +export const HteQuickSignButton = ({ onNextField, onComplete, isSubmitting }: HteQuickSignProps) => {
@@ -396,7 +406,8 @@ index 0000000..cc724eb
 +  const { envelope, recipient, fullName, signature, setSignature, signField } = useRequiredEnvelopeSigningContext();
 +  const { executeActionAuthProcedure } = useRequiredDocumentSigningAuthContext();
 +
-+  const field = useHteQuickSignField();
++  const quick = useHteQuickSignField();
++  const field = quick?.signature;
 +  const [isWorking, setIsWorking] = useState(false);
 +  const running = useRef(false);
 +
@@ -426,6 +437,17 @@ index 0000000..cc724eb
 +      }
 +
 +      setIsWorking(true);
++
++      // The name, date and e-mail boxes, with the values a tap on each would put in.
++      for (const box of quick?.fill ?? []) {
++        if (box.type === FieldType.NAME) {
++          await signField(box.id, { type: FieldType.NAME, value: name });
++        } else if (box.type === FieldType.DATE) {
++          await signField(box.id, { type: FieldType.DATE, value: true });
++        } else if (box.type === FieldType.EMAIL) {
++          await signField(box.id, { type: FieldType.EMAIL, value: recipient.email });
++        }
++      }
 +
 +      await executeActionAuthProcedure({
 +        actionTarget: FieldType.SIGNATURE,

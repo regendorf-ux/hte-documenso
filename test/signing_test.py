@@ -159,7 +159,12 @@ def sign_as(browser, url: str, label: str, out: Path, embed: dict | None = None)
             typed = pg.locator("[role=dialog] [role=tab][data-state=active]").first.inner_text().strip()
             check("the technician's window opened by itself, on Type", typed == "Type", typed)
             return sign_and_finish(pg, label, out, opened=True)
-        if pg.get_by_role("button", name=re.compile(r"^Sign as ")).count():
+        # HTE: a signer with one signature left (and name/date boxes) gets "Sign as <name>"; required here.
+        try:
+            pg.get_by_role("button", name=re.compile(r"^Sign as ")).first.wait_for(timeout=10000)
+        except Exception:  # noqa: BLE001 - recorded as a failed check, then Documenso's own steps
+            check(f"{label} got Sign as <name>", False, "Next Field / Complete instead")
+        else:
             return sign_and_finish(pg, label, out, opened=False)
         for _ in range(8):
             nxt = pg.get_by_role("button", name="Next Field").first
