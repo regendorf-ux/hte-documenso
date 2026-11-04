@@ -1272,6 +1272,61 @@ index 8706589..d5568cb 100644
    } else if (kind === 'embed-auth') {
      directives.push(`frame-ancestors 'none'`);
    } else {
+diff --git a/packages/lib/constants/pdf.test.ts b/packages/lib/constants/pdf.test.ts
+index dc9f5e7..40e88a2 100644
+--- a/packages/lib/constants/pdf.test.ts
++++ b/packages/lib/constants/pdf.test.ts
+@@ -18,12 +18,21 @@ describe('getSignatureFontFamily', () => {
+     expectCaveat(getSignatureFontFamily(''));
+   });
+ 
+-  it('returns the Noto chain for any non-ASCII character', () => {
+-    expectNotoChain(getSignatureFontFamily('François'));
+-    expectNotoChain(getSignatureFontFamily('Müller'));
+-    expectNotoChain(getSignatureFontFamily('Søren'));
+-    expectNotoChain(getSignatureFontFamily('Иванов'));
++  it('returns Caveat for accented Latin and Cyrillic, which Caveat draws (HTE)', () => {
++    expectCaveat(getSignatureFontFamily('Carmen Meléndez'));
++    expectCaveat(getSignatureFontFamily('José Muñoz Núñez'));
++    expectCaveat(getSignatureFontFamily('François'));
++    expectCaveat(getSignatureFontFamily('Müller'));
++    expectCaveat(getSignatureFontFamily('Søren Łukasz'));
++    expectCaveat(getSignatureFontFamily('Иванов'));
++    expectCaveat(getSignatureFontFamily('O’Neil – Smith'));
++    expectCaveat(getSignatureFontFamily('Mele\u0301ndez')); // é typed as e + combining accent
++  });
++
++  it('returns the Noto chain for any character Caveat cannot draw', () => {
+     expectNotoChain(getSignatureFontFamily('Ελληνικά'));
++    expectNotoChain(getSignatureFontFamily('Ǆemal')); // Latin Extended-B
++    expectNotoChain(getSignatureFontFamily('Ana ✍'));
+     expectNotoChain(getSignatureFontFamily('عربي'));
+     expectNotoChain(getSignatureFontFamily('עברית'));
+     expectNotoChain(getSignatureFontFamily('도큐멘소'));
+diff --git a/packages/lib/constants/pdf.ts b/packages/lib/constants/pdf.ts
+index 6aa56a6..e68d9be 100644
+--- a/packages/lib/constants/pdf.ts
++++ b/packages/lib/constants/pdf.ts
+@@ -17,11 +17,17 @@ const SIGNATURE_FONT_FAMILY_CAVEAT = 'Caveat';
+ const SIGNATURE_FONT_FAMILY_NOTO =
+   '"Noto Sans", "Noto Sans Chinese", "Noto Sans Japanese", "Noto Sans Korean", sans-serif';
+ 
+-const isASCII = (str: string) => /^\p{ASCII}*$/u.test(str);
++// HTE: every character Caveat (packages/assets/fonts/caveat.ttf) can draw - printable ASCII, Latin-1,
++// Latin Extended-A (not the long s), basic Cyrillic, typographic dashes and quotes - so an accented name
++// (Meléndez, Muñoz, Müller) stays handwritten in the sealed PDF as it was on the signing page. Checked
++// against the font's own character map; anything else still gets the Noto chain.
++const CAVEAT_DRAWS = /^[\u0020-\u007E\u00A0-\u017E\u0400-\u045F\u2013\u2014\u2018\u2019\u201C\u201D]*$/u;
++
++const caveatDraws = (str: string) => CAVEAT_DRAWS.test(str.normalize('NFC'));
+ 
+ // Deliberately never mix handwriting + sans-serif within one signature.
+ export const getSignatureFontFamily = (typedSignatureText: string): string =>
+-  isASCII(typedSignatureText) ? SIGNATURE_FONT_FAMILY_CAVEAT : SIGNATURE_FONT_FAMILY_NOTO;
++  caveatDraws(typedSignatureText) ? SIGNATURE_FONT_FAMILY_CAVEAT : SIGNATURE_FONT_FAMILY_NOTO;
+ 
+ export const PDF_SIZE_A4_72PPI = {
+   width: 595,
 diff --git a/packages/lib/server-only/pdf/render-certificate.ts b/packages/lib/server-only/pdf/render-certificate.ts
 index 9fa2a73..4717a82 100644
 --- a/packages/lib/server-only/pdf/render-certificate.ts
